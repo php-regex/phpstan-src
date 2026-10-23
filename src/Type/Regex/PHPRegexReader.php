@@ -61,18 +61,50 @@ final class PHPRegexReader
 			return null;
 		}
 
-		$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
-		$rawRegex = $this->regexExpressionHelper->removeDelimitersAndModifiers($regex);
+		['body' => $rawRegex, 'modifiers' => $modifiers, 'delimiter' => $delimiter] = $this->split($regex);
 
-		if (!$this->accepts($rawRegex, $modifiers, $trimmed[0])) {
+		if (!$this->accepts($rawRegex, $modifiers, $delimiter)) {
 			return null;
 		}
 
 		try {
-			return $this->read($rawRegex, $modifiers, $trimmed[0]);
+			return $this->read($rawRegex, $modifiers, $delimiter);
 		} catch (RegexException) {
 			return null;
 		}
+	}
+
+	/**
+	 * The target engine's refusal of a pattern as written, or null when it
+	 * takes the pattern — the rule's question, asked of the same judge the
+	 * shapes read.
+	 */
+	public function refusalOfExpression(string $pattern): ?string
+	{
+		$trimmed = trim($pattern);
+		if ($trimmed === '') {
+			return null;
+		}
+
+		['body' => $rawRegex, 'modifiers' => $modifiers, 'delimiter' => $delimiter] = $this->split($pattern);
+
+		return $this->refusal($rawRegex, $modifiers, $delimiter);
+	}
+
+	/**
+	 * A pattern as written, split where the helper splits it: the body
+	 * between the delimiters, the modifiers that follow the closing one,
+	 * and the opening delimiter itself.
+	 *
+	 * @return array{body: string, modifiers: string, delimiter: string}
+	 */
+	public function split(string $regex): array
+	{
+		return [
+			'body' => $this->regexExpressionHelper->removeDelimitersAndModifiers($regex),
+			'modifiers' => $this->regexExpressionHelper->getPatternModifiers($regex) ?? '',
+			'delimiter' => trim($regex) === '' ? '/' : trim($regex)[0],
+		];
 	}
 
 	/**

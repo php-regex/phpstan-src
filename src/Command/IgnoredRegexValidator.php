@@ -30,9 +30,7 @@ final class IgnoredRegexValidator
 
 	public function validate(string $regex): IgnoredRegexValidatorResult
 	{
-		$delimiter = substr($regex, 0, 1);
-		$modifiers = $this->modifiersOf($regex);
-		$regex = $this->removeDelimiters($regex);
+		['body' => $regex, 'modifiers' => $modifiers, 'delimiter' => $delimiter] = $this->reader->split($regex);
 
 		try {
 			$root = $this->reader->read($regex, $modifiers, $delimiter);
@@ -95,24 +93,6 @@ final class IgnoredRegexValidator
 		}
 
 		return $types;
-	}
-
-	/**
-	 * The letters that follow the closing delimiter, so a pattern in
-	 * extended mode reads with its comments and its blanks stripped by the
-	 * parser, not as literal spaces.
-	 */
-	private function modifiersOf(string $regex): string
-	{
-		$delimiter = substr($regex, 0, 1);
-		$endDelimiterPosition = strrpos($regex, $delimiter);
-		if ($endDelimiterPosition === false) {
-			throw new ShouldNotHappenException();
-		}
-
-		$modifiers = substr($regex, $endDelimiterPosition + 1);
-
-		return preg_replace('/[^a-zA-Z]/', '', $modifiers) ?? '';
 	}
 
 	private function removeDelimiters(string $regex): string
