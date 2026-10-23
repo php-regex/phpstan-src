@@ -2,10 +2,11 @@
 
 namespace PHPStan\Command;
 
-use Hoa\Compiler\Llk\Llk;
-use Hoa\File\Read;
+use PHPStan\Php\PcreVersion;
+use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\TypeStringResolver;
 use PHPStan\Testing\PHPStanTestCase;
+use PHPStan\Type\Regex\PHPRegexTreeNodeBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class IgnoredRegexValidatorTest extends PHPStanTestCase
@@ -163,9 +164,10 @@ class IgnoredRegexValidatorTest extends PHPStanTestCase
 		bool $expectAllErrorsIgnored,
 	): void
 	{
-		$grammar = new Read(__DIR__ . '/../../../resources/RegexGrammar.pp');
-		$parser = Llk::load($grammar);
-		$validator = new IgnoredRegexValidator($parser, self::getContainer()->getByType(TypeStringResolver::class));
+		$validator = new IgnoredRegexValidator(
+			self::getContainer()->getByType(TypeStringResolver::class),
+			new PHPRegexTreeNodeBuilder(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+		);
 
 		$result = $validator->validate($regex);
 		$this->assertSame($expectedTypes, $result->getIgnoredTypes());

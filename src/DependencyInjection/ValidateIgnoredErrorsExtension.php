@@ -2,8 +2,6 @@
 
 namespace PHPStan\DependencyInjection;
 
-use Hoa\Compiler\Llk\Llk;
-use Hoa\File\Read;
 use Nette\DI\CompilerExtension;
 use Nette\Utils\RegexpException;
 use Nette\Utils\Strings;
@@ -12,8 +10,10 @@ use PHPStan\Analyser\ConstantResolver;
 use PHPStan\Analyser\NameScope;
 use PHPStan\Command\IgnoredRegexValidator;
 use PHPStan\File\FileExcluder;
+use PHPStan\Type\Regex\PHPRegexTreeNodeBuilder;
 use PHPStan\Php\ComposerPhpVersionFactory;
 use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
+use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\DirectTypeNodeResolverExtensionRegistryProvider;
 use PHPStan\PhpDoc\TypeNodeResolver;
@@ -69,7 +69,6 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 		}
 
 		/** @throws void */
-		$parser = Llk::load(new Read(__DIR__ . '/../../resources/RegexGrammar.pp'));
 		$reflectionProvider = new DummyReflectionProvider();
 		$reflectionProviderProvider = new DirectReflectionProviderProvider($reflectionProvider);
 
@@ -94,7 +93,6 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 
 			$phpDocParserConfig = new ParserConfig([]);
 			$ignoredRegexValidator = new IgnoredRegexValidator(
-				$parser,
 				new TypeStringResolver(
 					new Lexer($phpDocParserConfig),
 					new TypeParser($phpDocParserConfig, new ConstExprParser($phpDocParserConfig)),
@@ -127,6 +125,13 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 						new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true),
 						reportUnsafeArrayStringKeyCasting: null,
 					),
+				),
+				// ignoreErrors patterns are matched by the running PHPStan
+				// itself, so their read is judged for the running PHP and
+				// its engine
+				new PHPRegexTreeNodeBuilder(
+					new PhpVersion(PHP_VERSION_ID),
+					PcreVersion::fromRuntime(),
 				),
 			);
 
