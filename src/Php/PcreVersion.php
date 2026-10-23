@@ -41,8 +41,10 @@ final class PcreVersion
 	 */
 	public static function fromString(string $version, int $source = self::SOURCE_UNKNOWN): self
 	{
-		// two digits on each side, as PCRE2 writes releases: 10.42, 11.00
-		if (preg_match('/^(\d{2})\.(\d{2})$/', $version, $matches) !== 1) {
+		// two digits on each side, as PCRE2 writes releases: 10.42, 11.00.
+		// A release candidate carries its date after a dash - "10.49-RC1
+		// 2026-08-14" - and reads as the release it carries the features of
+		if (preg_match('/^(\d{2})\.(\d{2})(?:[^\d].*)?$/', $version, $matches) !== 1) {
 			throw new \InvalidArgumentException(sprintf(
 				'"%s" is not a PCRE2 release. Expected a version like "10.42".',
 				$version,
