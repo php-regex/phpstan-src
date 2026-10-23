@@ -2,14 +2,14 @@
 
 namespace PHPStan\Command;
 
-use Hoa\Compiler\Llk\Parser;
-use Hoa\Compiler\Llk\TreeNode;
-use Hoa\Exception\Exception;
 use Nette\Utils\Strings;
+use PHPRegex\Parser\Exception\RegexException;
 use PHPStan\PhpDoc\TypeStringResolver;
 use PHPStan\PhpDocParser\Parser\ParserException;
 use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\ObjectType;
+use PHPStan\Type\Regex\PHPRegexTreeNodeBuilder;
+use PHPStan\Type\Regex\RegexTreeNode;
 use PHPStan\Type\VerbosityLevel;
 use function count;
 use function strrpos;
@@ -19,20 +19,20 @@ final class IgnoredRegexValidator
 {
 
 	public function __construct(
-		private Parser $parser,
 		private TypeStringResolver $typeStringResolver,
+		private PHPRegexTreeNodeBuilder $treeNodeBuilder,
 	)
 	{
 	}
 
 	public function validate(string $regex): IgnoredRegexValidatorResult
 	{
+		$delimiter = substr($regex, 0, 1);
 		$regex = $this->removeDelimiters($regex);
 
 		try {
-			/** @var TreeNode $ast */
-			$ast = $this->parser->parse($regex);
-		} catch (Exception) {
+			$ast = $this->treeNodeBuilder->parse($regex, '', $delimiter);
+		} catch (RegexException) {
 			return new IgnoredRegexValidatorResult(ignoredTypes: [], anchorsInTheMiddle: false, allErrorsIgnored: false);
 		}
 
@@ -53,9 +53,8 @@ final class IgnoredRegexValidator
 	/**
 	 * @return array<string, string>
 	 */
-	private function getIgnoredTypes(TreeNode $ast): array
+	private function getIgnoredTypes(RegexTreeNode $ast): array
 	{
-		/** @var TreeNode|null $alternation */
 		$alternation = $ast->getChild(0);
 		if ($alternation === null) {
 			return [];
@@ -110,7 +109,7 @@ final class IgnoredRegexValidator
 		return substr($regex, 1, $endDelimiterPosition - 1);
 	}
 
-	private function getText(TreeNode $treeNode): ?string
+	private function getText(RegexTreeNode $treeNode): ?string
 	{
 		if ($treeNode->getId() === 'token') {
 			return $treeNode->getValueValue();
@@ -137,7 +136,7 @@ final class IgnoredRegexValidator
 		return null;
 	}
 
-	private function hasAnchorsInTheMiddle(TreeNode $ast): bool
+	private function hasAnchorsInTheMiddle(RegexTreeNode $ast): bool
 	{
 		if ($ast->getId() === 'token') {
 			$valueArray = $ast->getValue();
