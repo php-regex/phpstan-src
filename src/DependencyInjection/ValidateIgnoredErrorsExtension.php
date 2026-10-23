@@ -10,7 +10,7 @@ use PHPStan\Analyser\ConstantResolver;
 use PHPStan\Analyser\NameScope;
 use PHPStan\Command\IgnoredRegexValidator;
 use PHPStan\File\FileExcluder;
-use PHPStan\Type\Regex\PHPRegexTreeNodeBuilder;
+use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Php\ComposerPhpVersionFactory;
 use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
 use PHPStan\Php\PcreVersion;
@@ -129,7 +129,7 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 				// ignoreErrors patterns are matched by the running PHPStan
 				// itself, so their read is judged for the running PHP and
 				// its engine
-				new PHPRegexTreeNodeBuilder(
+				new PHPRegexReader(
 					new PhpVersion(PHP_VERSION_ID),
 					PcreVersion::fromRuntime(),
 				),

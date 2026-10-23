@@ -6,7 +6,7 @@ use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\TypeStringResolver;
 use PHPStan\Testing\PHPStanTestCase;
-use PHPStan\Type\Regex\PHPRegexTreeNodeBuilder;
+use PHPStan\Type\Regex\PHPRegexReader;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class IgnoredRegexValidatorTest extends PHPStanTestCase
@@ -166,7 +166,7 @@ class IgnoredRegexValidatorTest extends PHPStanTestCase
 	{
 		$validator = new IgnoredRegexValidator(
 			self::getContainer()->getByType(TypeStringResolver::class),
-			new PHPRegexTreeNodeBuilder(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
 		);
 
 		$result = $validator->validate($regex);
