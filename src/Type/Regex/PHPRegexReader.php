@@ -9,6 +9,8 @@ use PHPRegex\Parser\RegexParser;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
+use function sprintf;
+use function trim;
 
 /**
  * Reads a pattern body into the PHPRegex AST, judged for the analysed
@@ -27,6 +29,7 @@ final class PHPRegexReader
 	public function __construct(
 		private PhpVersion $phpVersion,
 		private PcreVersion $pcreVersion,
+		private RegexExpressionHelper $regexExpressionHelper,
 	)
 	{
 	}
@@ -43,6 +46,33 @@ final class PHPRegexReader
 		$this->parser ??= RegexParser::create($this->targetOptions());
 
 		return $this->parser->parsePattern($rawRegex, $modifiers, $delimiter);
+	}
+
+	/**
+	 * Reads a pattern as written — delimiters, modifiers, all — judged for
+	 * the analysed project: split where the helper splits it, refused when
+	 * the engine its target runs refuses it, and read into the parser'"'"'s
+	 * own tree otherwise. Null when the target takes none of it.
+	 */
+	public function readExpression(string $regex): ?RegexNode
+	{
+		$trimmed = trim($regex);
+		if ($trimmed === '') {
+			return null;
+		}
+
+		$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
+		$rawRegex = $this->regexExpressionHelper->removeDelimitersAndModifiers($regex);
+
+		if (!$this->accepts($rawRegex, $modifiers, $trimmed[0])) {
+			return null;
+		}
+
+		try {
+			return $this->read($rawRegex, $modifiers, $trimmed[0]);
+		} catch (RegexException) {
+			return null;
+		}
 	}
 
 	/**
@@ -64,9 +94,27 @@ final class PHPRegexReader
 	 */
 	public function accepts(string $rawRegex, string $modifiers, string $delimiter): bool
 	{
+		return $this->refusal($rawRegex, $modifiers, $delimiter) === null;
+	}
+
+	/**
+	 * The target engine'"'"'s refusal of a pattern, in its own words and at
+	 * its own offset, or null when it takes the pattern.
+	 */
+	public function refusal(string $rawRegex, string $modifiers, string $delimiter): ?string
+	{
 		$this->parser ??= RegexParser::create($this->targetOptions());
 
-		return $this->parser->validate($this->delimited($rawRegex, $modifiers, $delimiter))->isValid;
+		$result = $this->parser->validate($this->delimited($rawRegex, $modifiers, $delimiter));
+		if ($result->isValid) {
+			return null;
+		}
+
+		if ($result->offset !== null && $result->error !== null) {
+			return sprintf('%s at offset %d', $result->error, $result->offset);
+		}
+
+		return $result->error;
 	}
 
 	/**
