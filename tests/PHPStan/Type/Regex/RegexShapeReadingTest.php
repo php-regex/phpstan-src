@@ -1,0 +1,485 @@
+<?php declare(strict_types = 1);
+
+namespace PHPStan\Type\Regex;
+
+use PHPStan\Php\PcreVersion;
+use PHPStan\Php\PcreVersionFactory;
+use PHPStan\Php\PhpVersion;
+use PHPStan\Type\Constant\ConstantStringType;
+use PHPStan\Type\VerbosityLevel;
+use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use ReflectionProperty;
+use function mb_internal_encoding;
+use function sprintf;
+
+/**
+ * Pins the walk semantics of RegexGroupParser now that the PHPRegex
+ * parser reads every pattern: what the old grammar read must stay put,
+ * what it refused or read wrongly (backreferences, verbs, callouts,
+ * \Q..\E, modern conditions, duplicate names, freespacing comments)
+ * keeps its verdict pinned here — every multi-byte literal split as the
+ * reader splits it, whatever mbstring's default encoding is.
+ */
+final class RegexShapeReadingTest extends TestCase
+{
+
+	public function testMultiByteLiteralsSplitAsUtf8WhateverTheDefaultEncoding(): void
+	{
+		$defaultEncoding = mb_internal_encoding();
+		// under a single-byte internal encoding a two-byte literal splits in
+		// two, doubling the meaningful tokens and typing the subject
+		// non-falsy when the engine sees one character
+		mb_internal_encoding('ISO-8859-1');
+
+		try {
+			$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+			$parser = new RegexGroupParser(
+				new PhpVersion(PHP_VERSION_ID),
+				$helper,
+				new PHPRegexTreeNodeBuilder(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+			);
+
+			$this->resetParsedAstCache();
+			$result = $parser->parseGroups('/é/');
+			self::assertNotNull($result);
+			self::assertSame('non-empty-string', $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'one character is one token, not two');
+		} finally {
+			mb_internal_encoding($defaultEncoding);
+		}
+	}
+
+	private function createParser(): RegexGroupParser
+	{
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+
+		return new RegexGroupParser(
+			new PhpVersion(PHP_VERSION_ID),
+			$helper,
+			new PHPRegexTreeNodeBuilder(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+		);
+	}
+
+	private function resetParsedAstCache(): void
+	{
+		$property = new ReflectionProperty(RegexGroupParser::class, 'parsedAst');
+		$property->setValue(null, []);
+	}
+
+	/**
+	 * Pattern bodies the old grammar read; the walk results they produced
+	 * are covered by the resolver suite's fixtures.
+	 *
+	 * @return list<string>
+	 */
+	private function oldGrammarReadableBodies(): array
+	{
+		return [
+			'a',
+			'ab',
+			'a\.b',
+			'a|b',
+			'a|',
+			'|a',
+			'a||b',
+			'(a)',
+			'(a)(b)',
+			'((a))',
+			'(?<name>a)',
+			'(?:a)',
+			'(?i:a)',
+			'(?i)',
+			'(?n)',
+			'(?|a|(b))',
+			'(?>a+)',
+			'()',
+			'a?',
+			'a??',
+			'a?+',
+			'a*',
+			'a*?',
+			'a*+',
+			'a+',
+			'a+?',
+			'a++',
+			'a{2}',
+			'a{2,}',
+			'a{2,4}',
+			'a{2,4}?',
+			'a{2,4}+',
+			'(ab)+',
+			'[ab]+',
+			'[abc]',
+			'[^abc]',
+			'[a-z]',
+			'[-a]',
+			'[a-]',
+			'[]]',
+			'[^]]',
+			'[a\-z]',
+			'[[:digit:]]',
+			'[[:^alpha:]]',
+			'[a-c\dx]',
+			'\d',
+			'\D',
+			'\w',
+			'\s',
+			'\h',
+			'\v',
+			'\R',
+			'\N',
+			'\p{L}',
+			'\P{L}',
+			'\p{Greek}',
+			'\x41',
+			'\101',
+			'\n',
+			'\t',
+			'\cA',
+			'^a$',
+			'\b',
+			'\B',
+			'\A',
+			'\z',
+			'\Z',
+			'\G',
+			'\K',
+			'(?=a)',
+			'(?!a)',
+			'(?<=a)',
+			'(?<!a)',
+			'a(?=b)c',
+			// (?(1)a|b) and friends stay out: a condition naming a group the
+			// pattern never defines is invalid for the engine itself, so the
+			// pre-check refuses it before the parser is ever asked, and \x{1F600}
+			// without /u likewise
+			'(?#comment)',
+			'(*:markname)',
+		];
+	}
+
+	public function testTheGrammarReadablePatternsStillWalk(): void
+	{
+		$parser = $this->createParser();
+		$missing = [];
+
+		foreach ($this->oldGrammarReadableBodies() as $body) {
+			$this->resetParsedAstCache();
+			$result = $parser->parseGroups('/' . $body . '/');
+			if ($result === null) {
+				$missing[] = $body;
+			}
+		}
+
+		self::assertSame([], $missing, 'Patterns the old grammar read that the parser now refuses: ' . implode(', ', $missing));
+	}
+
+	/**
+	 * Pattern bodies the old grammar could not read at all, or read with a
+	 * phantom literal: the PHPRegex backend must return a walk result anyway.
+	 * Bodies reference groups that exist, so the engine pre-check passes.
+	 *
+	 * @return list<string>
+	 */
+	private function hoaBlindBodies(): array
+	{
+		return [
+			'(a)\1',
+			'(a)(\1)',
+			'(a)\g{1}',
+			'(a)\g1',
+			'(a)\g{-1}',
+			'(?<n>a)\k<n>',
+			"(?<n>a)\k'n'",
+			'(?<n>a)(?P=n)',
+			'(?<n>a)\g{n}',
+			'(?<name>a)\g<name>',
+			"(?<name>a)\g'name'",
+			'(?+1)(a)',
+			'(a)(?1)',
+			'\Qa.b\E',
+			'a\Qb.c\E',
+			'(?(R)a|b)',
+			'(?(DEFINE)a)',
+			'(?(VERSION>=10.4)a|b)',
+			'(?(?=a)a|b)',
+			'(\x31)',
+			'a{2}?',
+			'(a)(*PRUNE)b',
+			'a(*SKIP)b',
+			'(a)(*FAIL)b',
+			'(?:(*ACCEPT)a)',
+			'(a)(?C1)b',
+		];
+	}
+
+	public function testTheReaderParsesWhatTheGrammarCouldNot(): void
+	{
+		$parser = $this->createParser();
+		$missing = [];
+
+		$this->resetParsedAstCache();
+
+		foreach ($this->hoaBlindBodies() as $body) {
+			$result = $parser->parseGroups('/' . $body . '/');
+			if ($result === null) {
+				$missing[] = $body;
+			}
+		}
+
+		self::assertSame([], $missing, 'Patterns the PHPRegex backend also refused: ' . implode(', ', $missing));
+	}
+
+	public function testBackreferenceIsNotTheLiteralOne(): void
+	{
+		$parser = $this->createParser();
+
+		// PCRE truth: preg_match('/(a)(\1)/', 'aa') fills group 2 with 'a'.
+		// The old grammar read \1 as the literal "1", so group 2 becomes the
+		// constant string '1' today.
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(a)(\1)/');
+
+		self::assertNotNull($result);
+		$groups = array_values($result->getCapturingGroups());
+		self::assertCount(2, $groups);
+		self::assertNotInstanceOf(ConstantStringType::class, $groups[1]->getType(), 'group 2 must not be a constant string');
+		self::assertTrue($groups[1]->getType()->isSuperTypeOf(new ConstantStringType('a'))->yes());
+	}
+
+	public function testNoAutoCaptureOptionDropsTheGroups(): void
+	{
+		$parser = $this->createParser();
+
+		// PCRE truth: (?n) turns capturing groups off, the match array holds
+		// only the full match. The old grammar could not see the option, so a
+		// phantom group 1 survives in the shapes inferred today.
+		$matched = preg_match('/(?n)(\d+)/', 'a5', $matches);
+		self::assertSame(1, $matched);
+		self::assertCount(1, $matches, 'the engine itself must not capture group 1');
+
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(?n)(\d+)/');
+
+		self::assertNotNull($result);
+		self::assertSame([], $result->getCapturingGroups(), 'the walk must not report a capturing group');
+	}
+
+	public function testTreeNodeCarriesTheWalkersSurface(): void
+	{
+		$leaf = new RegexTreeNode('token', ['token' => 'literal', 'value' => 'a', 'namespace' => 'default']);
+		$root = new RegexTreeNode('#concatenation', null, [$leaf]);
+
+		self::assertSame('#concatenation', $root->getId());
+		self::assertNull($root->getValueToken());
+		self::assertSame('literal', $leaf->getValueToken());
+		self::assertSame('a', $leaf->getValueValue());
+		self::assertSame($leaf, $root->getChild(0));
+		self::assertNull($root->getChild(1));
+		self::assertSame(1, $root->getChildrenNumber());
+		self::assertCount(1, $root->getChildren());
+
+		$replaced = new RegexTreeNode('token', ['token' => 'literal', 'value' => '']);
+		$root->setChildren([$leaf, $replaced]);
+		self::assertSame(2, $root->getChildrenNumber());
+		self::assertSame('default', $root->getChildren()[0]->getValue()['namespace'] ?? null);
+	}
+
+	public function testDuplicateGroupNamesKeepTheirShapesInlineAndStayRefusedTrailing(): void
+	{
+		$parser = $this->createParser();
+
+		// The trailing /J modifier is refused upstream, but the inline (?J)
+		// spelling parses today and the fixtures rely on its shapes: two
+		// groups of the same name across alternation branches.
+		$this->resetParsedAstCache();
+
+		$result = $parser->parseGroups('/(?J)(?<Foo>[a-z]+)|(?<Foo>[0-9]+)/');
+		self::assertNotNull($result);
+		$groups = array_values($result->getCapturingGroups());
+		self::assertCount(2, $groups);
+		self::assertSame('Foo', $groups[0]->getName());
+		self::assertSame('Foo', $groups[1]->getName());
+
+		$this->resetParsedAstCache();
+		self::assertNull($parser->parseGroups('/(?<x>a)(?<x>b)/J'));
+	}
+
+	public function testTheAnalysedPhpVersionShapesTheEscape(): void
+	{
+		// \x{ 41 } is a padded hex escape: engines from 10.43 read it as the
+		// letter A, older ones PHP 7.4 ships with refuse it and read the
+		// letter x then plain text. The pattern compiles on the running
+		// engine either way, so the shapes must follow the PHP the project
+		// analyses for — the grammar the pipeline replaced could not tell
+		// the two apart at all.
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+		// the engines each judged PHP bundles, pinned: the test says the same
+		// thing on every machine, whatever engine the runner links
+		$php74 = new RegexGroupParser(new PhpVersion(70400), $helper, new PHPRegexTreeNodeBuilder(new PhpVersion(70400), PcreVersion::fromString('10.33')));
+		$php84 = new RegexGroupParser(new PhpVersion(80400), $helper, new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.44')));
+
+		$this->resetParsedAstCache();
+		$result74 = $php74->parseGroups('/(a\x{ 41 })/');
+		$this->resetParsedAstCache();
+		$result84 = $php84->parseGroups('/(a\x{ 41 })/');
+
+		self::assertNotNull($result74);
+		self::assertNotNull($result84);
+
+		$group74 = array_values($result74->getCapturingGroups())[0]->getType();
+		$group84 = array_values($result84->getCapturingGroups())[0]->getType();
+
+		self::assertInstanceOf(ConstantStringType::class, $group74, '7.4 reads the letter x then text');
+		self::assertSame('ax{ 41 }', $group74->getValue());
+		self::assertNotInstanceOf(ConstantStringType::class, $group84, '8.x reads the padded escape');
+
+		// the reader is a service carrying its own target: no statics, no
+		// environment, one instance per judged PHP
+		$reader74 = new PHPRegexTreeNodeBuilder(new PhpVersion(70400), PcreVersion::fromString('10.33'));
+		$reader84 = new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.44'));
+
+		$tree74 = $reader74->parse('a\x{ 41 }', '', '/');
+		$tree84 = $reader84->parse('a\x{ 41 }', '', '/');
+
+		$fingerprint = static function (RegexTreeNode $n) use (&$fingerprint): string {
+			$children = '';
+			foreach ($n->getChildren() as $child) {
+				$children .= $fingerprint($child);
+			}
+
+			return sprintf('(%s|%s|%s)', $n->getId(), (string) $n->getValueToken(), (string) $n->getValueValue()) . $children;
+		};
+
+		self::assertSame($fingerprint($tree74), $fingerprint($reader74->parse('a\x{ 41 }', '', '/')), 'the same target reads the same tree twice');
+		self::assertNotSame($fingerprint($tree74), $fingerprint($tree84), 'the two targets build two trees');
+	}
+
+	public function testPcreVersionMirrorsPhpVersion(): void
+	{
+		// the same architecture PhpVersion has: sources with labels, a
+		// factory fed by config and composer.json, runtime as the default
+		$runtime = (new PcreVersionFactory(null, null))->create();
+		self::assertSame(PcreVersion::SOURCE_RUNTIME, $runtime->getSource());
+		self::assertSame('runtime', $runtime->getSourceLabel());
+		self::assertMatchesRegularExpression('/^10\.\d\d$/', $runtime->getVersionString());
+
+		// the running engine in one call, its release date trimmed away
+		self::assertSame(
+			$runtime->getVersionId(),
+			PcreVersion::fromRuntime()->getVersionId(),
+			'fromRuntime spells what the factory defaults to',
+		);
+		self::assertSame(PcreVersion::SOURCE_RUNTIME, PcreVersion::fromRuntime()->getSource());
+
+		$config = (new PcreVersionFactory('10.42', null))->create();
+		self::assertSame(PcreVersion::SOURCE_CONFIG, $config->getSource());
+		self::assertSame('config', $config->getSourceLabel());
+		self::assertSame('10.42', $config->getVersionString());
+		self::assertSame(1042, $config->getVersionId());
+		self::assertFalse($config->atLeast('10.43'), 'below the release padded hex escapes need');
+		self::assertTrue($config->atLeast('10.42'), 'at itself');
+		self::assertFalse($config->atLeast('10.44'), 'below the release long group names need');
+
+		$composer = (new PcreVersionFactory(null, '10.37'))->create();
+		self::assertSame(PcreVersion::SOURCE_COMPOSER_PLATFORM_PCRE, $composer->getSource());
+		self::assertSame('config.platform.lib-pcre in composer.json', $composer->getSourceLabel());
+		self::assertSame('10.37', $composer->getVersionString());
+
+		// the spelling PCRE2 writes; a runtime the factory cannot read falls
+		// back to the engine the running PHP bundles, never takes the boot
+		// down
+		// two digits on each side, whatever the series: 11 is not out yet,
+		// 12 will read the same way 10 does
+		self::assertSame('11.00', PcreVersion::fromString('11.00')->getVersionString());
+		self::assertSame('12.00', PcreVersion::fromString('12.00')->getVersionString());
+
+		try {
+			PcreVersion::fromString('banana');
+			self::fail('an engine release must be spelled like one');
+		} catch (\InvalidArgumentException) {
+		}
+		try {
+			PcreVersion::fromString('11.5');
+			self::fail('a minor is two digits, as PCRE2 writes it');
+		} catch (\InvalidArgumentException) {
+		}
+		try {
+			PcreVersion::fromString('9.42');
+			self::fail('a major is two digits, as PCRE2 writes it since the 10 series');
+		} catch (\InvalidArgumentException) {
+		}
+	}
+
+	public function testAPinAboveTheBundledEngineIsIgnored(): void
+	{
+		// the analysed PHP bundles its own engine; config or composer.json
+		// can only narrow below it, never raise the judged engine above
+		// what that PHP can run
+		$targetOf = static function (PHPRegexTreeNodeBuilder $builder): string {
+			$builder->parse('a', '', '/');
+
+			$property = new ReflectionProperty(PHPRegexTreeNodeBuilder::class, 'parser');
+			$property->setAccessible(true);
+
+			/** @var \PHPRegex\Parser\RegexParser $parser */
+			$parser = $property->getValue($builder);
+
+			return $parser->target()->pcreVersion;
+		};
+
+		// pinned, not read from the runner's engine: the test says the same
+		// thing on every machine
+		$runtimeEngine = PcreVersion::fromString('10.49');
+		self::assertSame('10.44', $targetOf(new PHPRegexTreeNodeBuilder(new PhpVersion(80400), $runtimeEngine)), 'a pin above the bundled engine is ignored');
+		self::assertSame('10.42', $targetOf(new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.42'))), 'a pin below the bundled engine narrows');
+		self::assertSame('10.44', $targetOf(new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.44'))), 'a pin at the bundled engine judges it');
+	}
+
+	public function testEngineRefusedPatternsGetNoShapeAndBracketDelimitersWalk(): void
+	{
+		$parser = $this->createParser();
+
+		// the engine itself refuses container verbs in every spelling PHP
+		// exposes, so the pre-check nulls the read before a group inside a
+		// (*SR:...) or (*SCRIPT_RUN:...) could ever reach the walk — the day
+		// an engine takes them, its own parser will carry the body as nodes
+		$this->resetParsedAstCache();
+		self::assertNull($parser->parseGroups('/(*SR:(?<x>a))b/'));
+		$this->resetParsedAstCache();
+		self::assertNull($parser->parseGroups('/(*SCRIPT_RUN:(?<x>a))b/'));
+
+		// the delimiter the pattern was written with, brackets included,
+		// travels to the reader whole
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('{(a)}');
+		self::assertNotNull($result);
+		$groups = array_values($result->getCapturingGroups());
+		self::assertCount(1, $groups);
+		self::assertInstanceOf(ConstantStringType::class, $groups[0]->getType());
+		self::assertSame('a', $groups[0]->getType()->getValue());
+	}
+
+	public function testXModeCommentsAreReadByTheParserNotPreStripped(): void
+	{
+		$parser = $this->createParser();
+
+		// PCRE truth: under /x the # only starts a comment outside \Q..\E and
+		// classes. The pre-strip that runs before the grammar is blind to
+		// both; in front of a mode-aware parser it mangles the pattern.
+		$matched = preg_match('/(a\Q#b\Ec)/x', 'a#bc', $matches);
+		self::assertSame(1, $matched);
+		self::assertSame('a#bc', $matches[1]);
+
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(a\Q#b\Ec)/x');
+
+		self::assertNotNull($result, 'the pattern must parse whole, comments included');
+		$groups = array_values($result->getCapturingGroups());
+		self::assertCount(1, $groups);
+		$type = $groups[0]->getType();
+		self::assertInstanceOf(ConstantStringType::class, $type);
+		self::assertSame('a#bc', $type->getValue());
+	}
+
+}
