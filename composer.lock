@@ -1542,12 +1542,12 @@
       "source": {
         "type": "git",
         "url": "https://github.com/php-regex/regex-parser-php74.git",
-        "reference": "57a0ef6e7be0ec5730b70d6b5052b756515a72d6"
+        "reference": "f30a3dfd7d9adea4e1d2bd0117b678950b89a7a9"
       },
       "dist": {
         "type": "zip",
-        "url": "https://api.github.com/repos/php-regex/regex-parser-php74/zipball/57a0ef6e7be0ec5730b70d6b5052b756515a72d6",
-        "reference": "57a0ef6e7be0ec5730b70d6b5052b756515a72d6",
+        "url": "https://api.github.com/repos/php-regex/regex-parser-php74/zipball/f30a3dfd7d9adea4e1d2bd0117b678950b89a7a9",
+        "reference": "f30a3dfd7d9adea4e1d2bd0117b678950b89a7a9",
         "shasum": ""
       },
       "require": {
@@ -1606,7 +1606,7 @@
           "url": "https://github.com/sponsors/yoeunes"
         }
       ],
-      "time": "2026-10-23T17:57:16+00:00"
+      "time": "2026-10-23T21:40:03+00:00"
     },
     {
       "name": "phpstan/php-8-stubs",
