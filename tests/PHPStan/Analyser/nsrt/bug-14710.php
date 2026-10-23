@@ -89,7 +89,7 @@ function pregMatchWithNonConstantPattern(string $pattern, string $x): void {
 function pregMatchSubjectSharesVarWithMatches(): void {
 	$matches = ['', '', 'foo'];
 	if (preg_match('/^(a|b|c)$/', $matches[2], $matches)) {
-		assertType("array{non-falsy-string, 'a'|'b'|'c'}", $matches);
+		assertType("array{'a'|'b'|'c', 'a'|'b'|'c'}", $matches);
 	}
 }
 

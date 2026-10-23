@@ -9,7 +9,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("array{string, 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
+			assertType("array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
 			return '';
 		},
 		$s,
@@ -23,7 +23,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("list{0: array{string, int<-1, max>}, 1?: array{''|'foo', int<-1, max>}, 2?: array{''|'bar', int<-1, max>}, 3?: array{'baz', int<-1, max>}}", $matches);
+			assertType("list{0: array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', int<-1, max>}, 1?: array{''|'foo', int<-1, max>}, 2?: array{''|'bar', int<-1, max>}, 3?: array{'baz', int<-1, max>}}", $matches);
 			return '';
 		},
 		$s,
@@ -37,7 +37,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("array{array{string|null, int<-1, max>}, array{'foo'|null, int<-1, max>}, array{'bar'|null, int<-1, max>}, array{'baz'|null, int<-1, max>}}", $matches);
+			assertType("array{array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz'|null, int<-1, max>}, array{'foo'|null, int<-1, max>}, array{'bar'|null, int<-1, max>}, array{'baz'|null, int<-1, max>}}", $matches);
 			return '';
 		},
 		$s,
@@ -62,8 +62,8 @@ function bug14904(string $string): void {
 	preg_replace_callback(
 		'/a|(?<b>b)/',
 		function (array $match): string {
-			assertType("array{0: non-empty-string, b: 'b'|null, 1: 'b'|null}", $match);
-			assertNativeType("array{0: non-empty-string, b: 'b'|null, 1: 'b'|null}", $match);
+			assertType("array{0: 'a'|'b', b: 'b'|null, 1: 'b'|null}", $match);
+			assertNativeType("array{0: 'a'|'b', b: 'b'|null, 1: 'b'|null}", $match);
 			return '';
 		},
 		$string,

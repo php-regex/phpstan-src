@@ -28,8 +28,8 @@ final class RegexShapeReadingTest extends TestCase
 	{
 		$defaultEncoding = mb_internal_encoding();
 		// under a single-byte internal encoding a two-byte literal splits in
-		// two, doubling the meaningful tokens and typing the subject
-		// non-falsy when the engine sees one character
+		// two, doubling the meaningful tokens — the shape reads the pattern
+		// as UTF-8 whatever the default encoding and keeps one character
 		mb_internal_encoding('ISO-8859-1');
 
 		try {
@@ -43,7 +43,7 @@ final class RegexShapeReadingTest extends TestCase
 			$this->resetParsedAstCache();
 			$result = $parser->parseGroups('/é/');
 			self::assertNotNull($result);
-			self::assertSame('non-empty-string', $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'one character is one token, not two');
+			self::assertSame("'é'", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'one character is one token, not two');
 		} finally {
 			mb_internal_encoding($defaultEncoding);
 		}
@@ -62,7 +62,7 @@ final class RegexShapeReadingTest extends TestCase
 
 	private function resetParsedAstCache(): void
 	{
-		$property = new ReflectionProperty(RegexGroupParser::class, 'parsedAst');
+		$property = new ReflectionProperty(RegexGroupParser::class, 'parsedShapes');
 		$property->setValue(null, []);
 	}
 
@@ -337,7 +337,8 @@ final class RegexShapeReadingTest extends TestCase
 
 		self::assertInstanceOf(ConstantStringType::class, $group74, '7.4 reads the letter x then text');
 		self::assertSame('ax{ 41 }', $group74->getValue());
-		self::assertNotInstanceOf(ConstantStringType::class, $group84, '8.x reads the padded escape');
+		self::assertInstanceOf(ConstantStringType::class, $group84, '8.x reads the padded escape');
+		self::assertSame('aA', $group84->getValue());
 
 		// the reader is a service carrying its own target: no statics, no
 		// environment, one instance per judged PHP, and it hands back the
@@ -453,6 +454,52 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame('10.44', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'))), 'a pin at the bundled engine judges it');
 	}
 
+	public function testDefineGroupsAreCountedOnceAndNeverMatch(): void
+	{
+		$parser = $this->createParser();
+
+		// the engine never fills a group a (?(DEFINE)...) block: it is
+		// counted once — the branch it sits in is not walked as a branch —
+		// and carries no type of its own
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(?(DEFINE)(?<a>x))b/');
+
+		self::assertNotNull($result);
+		$groups = array_values($result->getCapturingGroups());
+		self::assertCount(1, $groups, 'the defined group is counted once');
+		self::assertSame('a', $groups[0]->getName());
+		self::assertTrue($groups[0]->isOptional(), 'the engine never fills it');
+	}
+
+	public function testTheMatchAndTheSubjectAreTwoChannels(): void
+	{
+		$parser = $this->createParser();
+
+		// $matches[0] is the match the engine wrote, constants included;
+		// the subject is what the pattern was run against — a different
+		// quantity: it contains the match, so its accessories carry over by
+		// containment, but even fully anchored $ admits one final newline
+		// ("a\n" matches /^(a|b|c)$/), so the subject narrows to accessories
+		// alone, never to constants
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/^(a|b|c)$/');
+		self::assertNotNull($result);
+		self::assertSame("'a'|'b'|'c'", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'the match channel keeps the constants');
+		self::assertSame('non-falsy-string', $result->getSubjectNarrowType()->describe(VerbosityLevel::precise()), 'the subject channel narrows to accessories alone');
+
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/foo/');
+		self::assertNotNull($result);
+		self::assertSame("'foo'", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'the match channel keeps the constant');
+		self::assertSame('non-falsy-string', $result->getSubjectNarrowType()->describe(VerbosityLevel::precise()), 'a subject that contains a non-falsy match is non-falsy itself');
+
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/^$/');
+		self::assertNotNull($result);
+		self::assertSame("''", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'the match channel keeps the empty constant');
+		self::assertSame('string', $result->getSubjectNarrowType()->describe(VerbosityLevel::precise()), 'the subject may be the empty string or the final newline');
+	}
+
 	public function testTargetInvalidPatternsGetNoShape(): void
 	{
 		// the pre-check judges for the analysed PHP, not the running one: a
@@ -469,7 +516,9 @@ final class RegexShapeReadingTest extends TestCase
 		$this->resetParsedAstCache();
 		$result = $php84->parseGroups('/(a\x{ 41 })/');
 		self::assertNotNull($result, 'the engine PHP 8.4 bundles reads it');
-		self::assertNotInstanceOf(ConstantStringType::class, array_values($result->getCapturingGroups())[0]->getType());
+		$group84 = array_values($result->getCapturingGroups())[0]->getType();
+		self::assertInstanceOf(ConstantStringType::class, $group84, 'the shape knows what it reads');
+		self::assertSame('aA', $group84->getValue());
 	}
 
 	public function testEngineRefusedPatternsGetNoShapeAndBracketDelimitersWalk(): void
