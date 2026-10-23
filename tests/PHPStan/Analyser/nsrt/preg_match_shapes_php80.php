@@ -14,8 +14,8 @@ function doOffsetCaptureWithUnmatchedNull(string $s): void {
 
 function doNonAutoCapturingModifier(string $s): void {
 	if (preg_match('/(?n)(\d+)/', $s, $matches)) {
-		// should be assertType('array{string}', $matches);
-		assertType('array{non-empty-string, numeric-string}', $matches);
+		// (?n) turns capturing off, so only the full match remains
+		assertType('array{non-empty-string}', $matches);
 	}
-	assertType('array{}|array{non-empty-string, numeric-string}', $matches);
+	assertType('array{}|array{non-empty-string}', $matches);
 }
