@@ -2,7 +2,6 @@
 
 namespace PHPStan\Type\Regex;
 
-use Nette\Utils\RegexpException;
 use Nette\Utils\Strings;
 use PHPRegex\Parser\Exception\RegexException;
 use PHPRegex\Parser\Node\AlternationNode;
@@ -90,13 +89,6 @@ final class RegexGroupParser
 
 			$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
 		} else {
-			try {
-				Strings::match('', $regex);
-			} catch (RegexpException) {
-				// pattern is invalid, so let the RegularExpressionPatternRule report it
-				return self::$parsedAst[$cacheKey] = null;
-			}
-
 			$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
 			foreach (self::NOT_SUPPORTED_MODIFIERS as $notSupportedModifier) {
 				if (str_contains($modifiers, $notSupportedModifier)) {
@@ -105,11 +97,21 @@ final class RegexGroupParser
 			}
 
 			$rawRegex = $this->regexExpressionHelper->removeDelimitersAndModifiers($regex);
+			$delimiter = self::delimiterOf($regex);
+
+			// the pattern is judged for the analysed PHP: one the engine it
+			// runs refuses carries no shape, whatever the running engine
+			// says about it — the invalid-pattern rule reports on the
+			// running engine, and each part speaks for its own judge
+			if (!$this->reader->accepts($rawRegex, $modifiers, $delimiter)) {
+				return self::$parsedAst[$cacheKey] = null;
+			}
+
 			try {
 				$ast = self::$parsedAst[$cacheKey] = $this->reader->read(
 					$rawRegex,
 					$modifiers,
-					self::delimiterOf($regex),
+					$delimiter,
 				);
 			} catch (RegexException) {
 				return self::$parsedAst[$cacheKey] = null;

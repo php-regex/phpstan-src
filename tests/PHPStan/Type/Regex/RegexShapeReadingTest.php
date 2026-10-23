@@ -453,6 +453,25 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame('10.44', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'))), 'a pin at the bundled engine judges it');
 	}
 
+	public function testTargetInvalidPatternsGetNoShape(): void
+	{
+		// the pre-check judges for the analysed PHP, not the running one: a
+		// padded \x{ 41 } compiles on the runner's 10.43+ engine but the PHP
+		// an 8.2 project runs refuses it, so the shape is null and the
+		// invalid-pattern rule speaks about the running engine alone
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+		$php82 = new RegexGroupParser(new PhpVersion(80200), $helper, new PHPRegexReader(new PhpVersion(80200), PcreVersion::fromString('10.40')));
+		$php84 = new RegexGroupParser(new PhpVersion(80400), $helper, new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44')));
+
+		$this->resetParsedAstCache();
+		self::assertNull($php82->parseGroups('/(a\x{ 41 })/'), 'the engine PHP 8.2 bundles refuses the padded escape');
+
+		$this->resetParsedAstCache();
+		$result = $php84->parseGroups('/(a\x{ 41 })/');
+		self::assertNotNull($result, 'the engine PHP 8.4 bundles reads it');
+		self::assertNotInstanceOf(ConstantStringType::class, array_values($result->getCapturingGroups())[0]->getType());
+	}
+
 	public function testEngineRefusedPatternsGetNoShapeAndBracketDelimitersWalk(): void
 	{
 		$parser = $this->createParser();
