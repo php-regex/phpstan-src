@@ -19,9 +19,9 @@ function doMatch(string $s): void {
 	assertType("array{}|array{non-falsy-string, '£'|'€'}", $matches);
 
 	if (preg_match('/Price: (£|€)(\d+)/i', $s, $matches)) {
-		assertType('array{non-falsy-string, non-falsy-string, numeric-string}', $matches);
+		assertType('array{non-falsy-string, \'£\'|\'€\', numeric-string}', $matches);
 	}
-	assertType('array{}|array{non-falsy-string, non-falsy-string, numeric-string}', $matches);
+	assertType('array{}|array{non-falsy-string, \'£\'|\'€\', numeric-string}', $matches);
 
 	if (preg_match('  /Price: (£|€)\d+/ i u', $s, $matches)) {
 		assertType('array{non-falsy-string, non-falsy-string}', $matches);
@@ -29,9 +29,9 @@ function doMatch(string $s): void {
 	assertType('array{}|array{non-falsy-string, non-falsy-string}', $matches);
 
 	if (preg_match('(Price: (£|€))i', $s, $matches)) {
-		assertType('array{non-falsy-string, non-falsy-string}', $matches);
+		assertType('array{non-falsy-string, \'£\'|\'€\'}', $matches);
 	}
-	assertType('array{}|array{non-falsy-string, non-falsy-string}', $matches);
+	assertType('array{}|array{non-falsy-string, \'£\'|\'€\'}', $matches);
 
 	if (preg_match('_foo(.)\_i_i', $s, $matches)) {
 		assertType('array{non-falsy-string, non-empty-string}', $matches);
@@ -576,7 +576,7 @@ function (string $s): void {
 
 function (string $s): void {
 	if (preg_match('/Price: ([0-9])/i', $s, $matches)) {
-		assertType("array{non-falsy-string, numeric-string}", $matches);
+		assertType("array{non-falsy-string, '0'|'1'|'2'|'3'|'4'|'5'|'6'|'7'|'8'|'9'}", $matches);
 	}
 };
 
