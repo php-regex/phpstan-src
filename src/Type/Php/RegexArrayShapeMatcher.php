@@ -77,7 +77,14 @@ final class RegexArrayShapeMatcher
 				return null;
 			}
 
-			$subjectTypes[] = $astWalkResult->getSubjectBaseType();
+			// the subject narrows only where the pattern anchors both ends —
+			// null says it does not, and the subject keeps its own type
+			$subjectNarrowType = $astWalkResult->getSubjectNarrowType();
+			if ($subjectNarrowType === null) {
+				return null;
+			}
+
+			$subjectTypes[] = $subjectNarrowType;
 		}
 
 		return TypeCombinator::union(...$subjectTypes);
