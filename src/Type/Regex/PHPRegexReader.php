@@ -4,7 +4,6 @@ namespace PHPStan\Type\Regex;
 
 use PHPRegex\Parser\Exception\RegexException;
 use PHPRegex\Parser\Node\RegexNode;
-use PHPRegex\Parser\Syntax\Delimiters;
 use PHPRegex\Parser\PcreTarget;
 use PHPRegex\Parser\RegexParser;
 use PHPStan\DependencyInjection\AutowiredService;
@@ -47,6 +46,18 @@ final class PHPRegexReader
 	}
 
 	/**
+	 * The engine the patterns read here are judged for: the baseline the
+	 * analysed PHP carries, narrowed or widened by what the pin or the
+	 * witness says.
+	 */
+	public function judgedPcreVersion(): string
+	{
+		$this->parser ??= RegexParser::create($this->targetOptions());
+
+		return $this->parser->target()->pcreVersion;
+	}
+
+	/**
 	 * Whether the engine the judged target runs accepts the pattern: the
 	 * parser validates for the target it reads for, so a construct the
 	 * running engine takes but the analysed one predates is refused here.
@@ -55,13 +66,32 @@ final class PHPRegexReader
 	{
 		$this->parser ??= RegexParser::create($this->targetOptions());
 
-		$regex = $delimiter . $rawRegex . Delimiters::closing($delimiter) . $modifiers;
-
-		return $this->parser->validate($regex)->isValid;
+		return $this->parser->validate($this->delimited($rawRegex, $modifiers, $delimiter))->isValid;
 	}
 
 	/**
-	 * @return array<string, int|string>
+	 * The pattern as it was written: a bracket delimiter closes with its
+	 * pair, any other one closes with itself.
+	 */
+	private function delimited(string $rawRegex, string $modifiers, string $delimiter): string
+	{
+		static $pairs = ['(' => ')', '[' => ']', '{' => '}', '<' => '>'];
+
+		return $delimiter . $rawRegex . ($pairs[$delimiter] ?? $delimiter) . $modifiers;
+	}
+
+	/**
+	 * The parser options that judge the pattern for the analysed project.
+	 *
+	 * A named engine is a statement about that project — the config or the
+	 * composer platform says which engine it runs — and is honoured in both
+	 * directions. The running engine is only a witness: it speaks for the
+	 * analysed PHP when the two share a minor, because a patch release
+	 * carries whatever engine was current when it was cut, and the baseline
+	 * map only knows the minor's first. From another minor the witness
+	 * stays silent and the baseline judges.
+	 *
+	 * @return array{php_version: int, pcre_version?: string}
 	 */
 	private function targetOptions(): array
 	{
@@ -69,7 +99,12 @@ final class PHPRegexReader
 		$bundled = PcreTarget::bundledWith($phpVersionId);
 
 		$options = ['php_version' => $phpVersionId];
-		if (!$this->pcreVersion->atLeast($bundled->pcreVersion)) {
+
+		$isStatement = \in_array($this->pcreVersion->getSource(), [PcreVersion::SOURCE_CONFIG, PcreVersion::SOURCE_COMPOSER_PLATFORM_PCRE], true);
+		$speaksForAnalysed = $this->pcreVersion->getSource() === PcreVersion::SOURCE_RUNTIME
+			&& intdiv($phpVersionId, 100) === intdiv(\PHP_VERSION_ID, 100);
+
+		if ($isStatement || $speaksForAnalysed || !$this->pcreVersion->atLeast($bundled->pcreVersion)) {
 			$options['pcre_version'] = $this->pcreVersion->getVersionString();
 		}
 

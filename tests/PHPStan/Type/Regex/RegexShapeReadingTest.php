@@ -256,7 +256,7 @@ final class RegexShapeReadingTest extends TestCase
 		// phantom group 1 survives in the shapes inferred today.
 		$matched = preg_match('/(?n)(\d+)/', 'a5', $matches);
 		self::assertSame(1, $matched);
-		self::assertCount(1, $matches, 'the engine itself must not capture group 1');
+		self::assertSame(['5'], $matches, 'the engine itself must not capture group 1');
 
 		$this->resetParsedAstCache();
 		$result = $parser->parseGroups('/(?n)(\d+)/');
@@ -265,6 +265,9 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame([], $result->getCapturingGroups(), 'the walk must not report a capturing group');
 	}
 
+	/**
+	 * @throws \PHPRegex\Parser\Exception\RegexException
+	 */
 	public function testTheReaderHandsBackTheParserOwnTree(): void
 	{
 		// no translation layer stands between the walkers and the parser's
@@ -272,7 +275,7 @@ final class RegexShapeReadingTest extends TestCase
 		$reader = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'));
 
 		$tree = $reader->read('(a)', '', '/');
-		self::assertInstanceOf(\PHPRegex\Parser\Node\RegexNode::class, $tree);
+		self::assertSame('/', $tree->delimiter);
 		$body = $tree->pattern;
 		self::assertInstanceOf(\PHPRegex\Parser\Node\GroupNode::class, $body);
 		self::assertSame(\PHPRegex\Parser\Node\GroupType::Capturing(), $body->type);
@@ -286,6 +289,7 @@ final class RegexShapeReadingTest extends TestCase
 		$tree = $reader->read('a{2,4}', '', '/');
 		self::assertInstanceOf(\PHPRegex\Parser\Node\QuantifierNode::class, $tree->pattern);
 		$bounds = \PHPRegex\Parser\Node\QuantifierBounds::parse($tree->pattern->quantifier);
+		self::assertNotNull($bounds);
 		self::assertSame(2, $bounds->min);
 		self::assertSame(4, $bounds->max);
 	}
@@ -310,6 +314,9 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertNull($parser->parseGroups('/(?<x>a)(?<x>b)/J'));
 	}
 
+	/**
+	 * @throws \PHPRegex\Parser\Exception\RegexException
+	 */
 	public function testTheAnalysedPhpVersionShapesTheEscape(): void
 	{
 		// \x{ 41 } is a padded hex escape: engines from 10.43 read it as the
@@ -358,7 +365,7 @@ final class RegexShapeReadingTest extends TestCase
 			$name = (new ReflectionClass($n))->getShortName();
 			$detail = '';
 			foreach (['value', 'quantifier', 'type', 'isNegated'] as $prop) {
-				$propValue = $n->$prop ?? null;
+				$propValue = property_exists($n, $prop) ? $n->$prop : null;
 				if ($propValue !== null && (is_string($propValue) || is_int($propValue) || is_bool($propValue))) {
 					$detail .= '|' . $propValue;
 				} elseif ($propValue !== null) {
@@ -429,11 +436,16 @@ final class RegexShapeReadingTest extends TestCase
 		}
 	}
 
-	public function testAPinAboveTheBundledEngineIsIgnored(): void
+	/**
+	 * @throws \PHPRegex\Parser\Exception\RegexException
+	 */
+	public function testTheJudgedEngineFollowsThePinThenTheWitness(): void
 	{
-		// the analysed PHP bundles its own engine; config or composer.json
-		// can only narrow below it, never raise the judged engine above
-		// what that PHP can run
+		// a named engine is a statement about the analysed project, honoured
+		// in both directions; the running engine is only a witness, and it
+		// speaks for the analysed PHP when the two share a minor — a patch
+		// release carries whatever engine was current, and the baseline map
+		// only knows the minor's first
 		$targetOf = static function (PHPRegexReader $reader): string {
 			$reader->read('a', '', '/');
 
@@ -446,12 +458,14 @@ final class RegexShapeReadingTest extends TestCase
 			return $parser->target()->pcreVersion;
 		};
 
-		// pinned, not read from the runner's engine: the test says the same
-		// thing on every machine
-		$runtimeEngine = PcreVersion::fromString('10.49');
-		self::assertSame('10.44', $targetOf(new PHPRegexReader(new PhpVersion(80400), $runtimeEngine)), 'a pin above the bundled engine is ignored');
-		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42'))), 'a pin below the bundled engine narrows');
-		self::assertSame('10.44', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'))), 'a pin at the bundled engine judges it');
+		$minor = intdiv(PHP_VERSION_ID, 100) * 100;
+		$witness = PcreVersion::fromString(PcreVersion::fromRuntime()->getVersionString(), PcreVersion::SOURCE_RUNTIME);
+
+		self::assertSame('10.49', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.49', PcreVersion::SOURCE_CONFIG))), 'a pin is a statement, honoured above the baseline');
+		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42', PcreVersion::SOURCE_CONFIG))), 'a pin below the baseline narrows');
+		self::assertSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion($minor), $witness)), 'the running engine speaks for its own minor');
+		self::assertNotSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion(70400), $witness)), 'a witness from another minor stays silent');
+		self::assertSame('10.49', PcreVersion::fromString('10.49-RC1')->getVersionString(), 'a release candidate reads as its release');
 	}
 
 	public function testDefineGroupsAreCountedOnceAndNeverMatch(): void
@@ -471,6 +485,55 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertTrue($groups[0]->isOptional(), 'the engine never fills it');
 	}
 
+	public function testADefinedGroupHoldsOnlyTheEmptyString(): void
+	{
+		$parser = $this->createParser();
+
+		// preg_match('/(?(DEFINE)(?<foo>abc))(?<bar>x)/', 'x', $m) fills
+		// bar and leaves foo at '' — the engine never runs what DEFINE holds
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(?(DEFINE)(?<foo>abc))(?<bar>x)/');
+
+		self::assertNotNull($result);
+		$foo = $result->getCapturingGroups()[1] ?? null;
+		self::assertNotNull($foo);
+		self::assertSame("''", $foo->getType()->describe(VerbosityLevel::precise()), 'a defined group stays empty');
+	}
+
+	public function testConditionalBranchesAreExclusive(): void
+	{
+		$parser = $this->createParser();
+
+		// preg_match('/(a)(?(1)b|(c))/', 'ab', $m) fills group 1 and never
+		// group 2 — the branches run one at a time, as an alternation
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(a)(?(1)b|(c))/');
+
+		self::assertNotNull($result);
+		$groups = $result->getCapturingGroups();
+		self::assertSame("'a'", $groups[1]->getType()->describe(VerbosityLevel::precise()));
+		self::assertFalse($groups[1]->isOptional());
+		self::assertSame("'c'", $groups[2]->getType()->describe(VerbosityLevel::precise()));
+		self::assertTrue($groups[2]->isOptional(), 'the else branch runs alone, or not at all');
+	}
+
+	public function testALookaroundConditionCountsItsGroups(): void
+	{
+		$parser = $this->createParser();
+
+		// the engine numbers the groups a lookaround condition holds before
+		// the branches' — preg_match numbers (a) as 1 and (c) as 2, whatever
+		// runs
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(?(?=(a))b|(c))/');
+
+		self::assertNotNull($result);
+		$groups = $result->getCapturingGroups();
+		self::assertCount(2, $groups, 'the condition holds group 1');
+		self::assertSame("'a'", $groups[1]->getType()->describe(VerbosityLevel::precise()));
+		self::assertSame("'c'", $groups[2]->getType()->describe(VerbosityLevel::precise()));
+	}
+
 	public function testTheMatchAndTheSubjectAreTwoChannels(): void
 	{
 		$parser = $this->createParser();
@@ -485,19 +548,25 @@ final class RegexShapeReadingTest extends TestCase
 		$result = $parser->parseGroups('/^(a|b|c)$/');
 		self::assertNotNull($result);
 		self::assertSame("'a'|'b'|'c'", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'the match channel keeps the constants');
-		self::assertSame('non-falsy-string', $result->getSubjectNarrowType()->describe(VerbosityLevel::precise()), 'the subject channel narrows to accessories alone');
+		$narrowType = $result->getSubjectNarrowType();
+		self::assertNotNull($narrowType, 'an anchored pattern narrows its subject');
+		self::assertSame('non-falsy-string', $narrowType->describe(VerbosityLevel::precise()), 'the subject channel narrows to accessories alone');
 
 		$this->resetParsedAstCache();
 		$result = $parser->parseGroups('/foo/');
 		self::assertNotNull($result);
 		self::assertSame("'foo'", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'the match channel keeps the constant');
-		self::assertSame('non-falsy-string', $result->getSubjectNarrowType()->describe(VerbosityLevel::precise()), 'a subject that contains a non-falsy match is non-falsy itself');
+		$narrowType = $result->getSubjectNarrowType();
+		self::assertNotNull($narrowType);
+		self::assertSame('non-falsy-string', $narrowType->describe(VerbosityLevel::precise()), 'a subject that contains a non-falsy match is non-falsy itself');
 
 		$this->resetParsedAstCache();
 		$result = $parser->parseGroups('/^$/');
 		self::assertNotNull($result);
 		self::assertSame("''", $result->getSubjectBaseType()->describe(VerbosityLevel::precise()), 'the match channel keeps the empty constant');
-		self::assertSame('string', $result->getSubjectNarrowType()->describe(VerbosityLevel::precise()), 'the subject may be the empty string or the final newline');
+		$narrowType = $result->getSubjectNarrowType();
+		self::assertNotNull($narrowType);
+		self::assertSame('string', $narrowType->describe(VerbosityLevel::precise()), 'the subject may be the empty string or the final newline');
 	}
 
 	public function testTargetInvalidPatternsGetNoShape(): void
@@ -554,7 +623,7 @@ final class RegexShapeReadingTest extends TestCase
 		// both; in front of a mode-aware parser it mangles the pattern.
 		$matched = preg_match('/(a\Q#b\Ec)/x', 'a#bc', $matches);
 		self::assertSame(1, $matched);
-		self::assertSame('a#bc', $matches[1]);
+		self::assertSame('["a#bc","a#bc"]', json_encode($matches), 'the engine reads the quoted hash as text');
 
 		$this->resetParsedAstCache();
 		$result = $parser->parseGroups('/(a\Q#b\Ec)/x');

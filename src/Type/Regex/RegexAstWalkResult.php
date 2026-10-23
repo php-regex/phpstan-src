@@ -19,7 +19,6 @@ final class RegexAstWalkResult
 	 */
 	public function __construct(
 		private int $alternationId,
-		private int $captureGroupId,
 		private array $capturingGroups,
 		private array $markVerbs,
 		private Type $subjectBaseType,
@@ -32,8 +31,6 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			-1,
-			// use different start-index for groups to make it easier to distinguish groupids from other ids
-			100,
 			[],
 			[],
 			new StringType(),
@@ -44,19 +41,6 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			$this->alternationId + 1,
-			$this->captureGroupId,
-			$this->capturingGroups,
-			$this->markVerbs,
-			$this->subjectBaseType,
-			$this->subjectNarrowType,
-		);
-	}
-
-	public function nextCaptureGroupId(): self
-	{
-		return new self(
-			$this->alternationId,
-			$this->captureGroupId + 1,
 			$this->capturingGroups,
 			$this->markVerbs,
 			$this->subjectBaseType,
@@ -71,7 +55,6 @@ final class RegexAstWalkResult
 
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$capturingGroups,
 			$this->markVerbs,
 			$this->subjectBaseType,
@@ -86,7 +69,6 @@ final class RegexAstWalkResult
 
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$this->capturingGroups,
 			$verbs,
 			$this->subjectBaseType,
@@ -97,7 +79,6 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$this->capturingGroups,
 			$this->markVerbs,
 			$subjectBaseType,
@@ -108,7 +89,6 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$this->capturingGroups,
 			$this->markVerbs,
 			$this->subjectBaseType,
@@ -119,11 +99,6 @@ final class RegexAstWalkResult
 	public function getAlternationId(): int
 	{
 		return $this->alternationId;
-	}
-
-	public function getCaptureGroupId(): int
-	{
-		return $this->captureGroupId;
 	}
 
 	/**
