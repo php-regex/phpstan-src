@@ -6,7 +6,6 @@ use PHPRegex\Parser\Analysis\CaptureGroupShape;
 use PHPRegex\Parser\Analysis\CaptureShape;
 use PHPRegex\Parser\Analysis\CaptureShapeAnalyzer;
 use PHPRegex\Parser\Analysis\Participation;
-use PHPRegex\Parser\Exception\RegexException;
 use PHPRegex\Parser\Node\AlternationNode;
 use PHPRegex\Parser\Node\AnchorNode;
 use PHPRegex\Parser\Node\ConditionalNode;
@@ -32,8 +31,6 @@ use PHPStan\Type\UnionType;
 use function array_key_exists;
 use function count;
 use function spl_object_id;
-use function str_contains;
-use function trim;
 
 /**
  * Reads a pattern into the group topology the array shape matcher folds
@@ -46,16 +43,11 @@ use function trim;
 final class RegexGroupParser
 {
 
-	private const NOT_SUPPORTED_MODIFIERS = [
-		'J', // rare modifier too complicated to support
-	];
-
 	/** @var array<string, ?array{CaptureShape, RegexNode}> */
 	private static array $parsedShapes = [];
 
 	public function __construct(
 		private PhpVersion $phpVersion,
-		private RegexExpressionHelper $regexExpressionHelper,
 		private PHPRegexReader $reader,
 	)
 	{
@@ -75,27 +67,11 @@ final class RegexGroupParser
 
 			[$shape, $ast] = $cached;
 		} else {
-			$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
-			foreach (self::NOT_SUPPORTED_MODIFIERS as $notSupportedModifier) {
-				if (str_contains($modifiers, $notSupportedModifier)) {
-					return self::$parsedShapes[$cacheKey] = null;
-				}
-			}
-
-			$rawRegex = $this->regexExpressionHelper->removeDelimitersAndModifiers($regex);
-			$delimiter = self::delimiterOf($regex);
-
-			// the pattern is judged for the analysed PHP: one the engine it
-			// runs refuses carries no shape, whatever the running engine
-			// says about it — the invalid-pattern rule reports on the
-			// running engine, and each part speaks for its own judge
-			if (!$this->reader->accepts($rawRegex, $modifiers, $delimiter)) {
-				return self::$parsedShapes[$cacheKey] = null;
-			}
-
-			try {
-				$ast = $this->reader->read($rawRegex, $modifiers, $delimiter);
-			} catch (RegexException) {
+			// the pattern is judged for the analysed PHP and the engine its
+			// target runs: one that engine refuses carries no shape, whatever
+			// the running engine says about it
+			$ast = $this->reader->readExpression($regex);
+			if ($ast === null) {
 				return self::$parsedShapes[$cacheKey] = null;
 			}
 
@@ -104,13 +80,6 @@ final class RegexGroupParser
 		}
 
 		return $this->buildWalkResult($shape, $ast->pattern);
-	}
-
-	private static function delimiterOf(string $regex): string
-	{
-		$trimmed = trim($regex);
-
-		return $trimmed === '' ? '/' : $trimmed[0];
 	}
 
 	/**

@@ -10,6 +10,7 @@ use PHPStan\Type\VerbosityLevel;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
+use function json_encode;
 use function mb_internal_encoding;
 use function sprintf;
 
@@ -30,14 +31,13 @@ final class RegexShapeReadingTest extends TestCase
 		// under a single-byte internal encoding a two-byte literal splits in
 		// two, doubling the meaningful tokens — the shape reads the pattern
 		// as UTF-8 whatever the default encoding and keeps one character
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		mb_internal_encoding('ISO-8859-1');
 
 		try {
-			$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 			$parser = new RegexGroupParser(
 				new PhpVersion(PHP_VERSION_ID),
-				$helper,
-				new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+				new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime(), $helper),
 			);
 
 			$this->resetParsedAstCache();
@@ -55,8 +55,7 @@ final class RegexShapeReadingTest extends TestCase
 
 		return new RegexGroupParser(
 			new PhpVersion(PHP_VERSION_ID),
-			$helper,
-			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime(), $helper),
 		);
 	}
 
@@ -272,7 +271,8 @@ final class RegexShapeReadingTest extends TestCase
 	{
 		// no translation layer stands between the walkers and the parser's
 		// AST: what read() returns is what the parser built, walked as is
-		$reader = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'));
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+		$reader = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'), $helper);
 
 		$tree = $reader->read('(a)', '', '/');
 		self::assertSame('/', $tree->delimiter);
@@ -294,13 +294,13 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame(4, $bounds->max);
 	}
 
-	public function testDuplicateGroupNamesKeepTheirShapesInlineAndStayRefusedTrailing(): void
+	public function testDuplicateGroupNamesKeepTheirShapesInlineAndTrailing(): void
 	{
 		$parser = $this->createParser();
 
-		// The trailing /J modifier is refused upstream, but the inline (?J)
-		// spelling parses today and the fixtures rely on its shapes: two
-		// groups of the same name across alternation branches.
+		// The two spellings of the duplicate-name modifier read the same
+		// shapes: inline (?J) and trailing /J, two groups of one name across
+		// alternation branches.
 		$this->resetParsedAstCache();
 
 		$result = $parser->parseGroups('/(?J)(?<Foo>[a-z]+)|(?<Foo>[0-9]+)/');
@@ -311,7 +311,12 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame('Foo', $groups[1]->getName());
 
 		$this->resetParsedAstCache();
-		self::assertNull($parser->parseGroups('/(?<x>a)(?<x>b)/J'));
+		$trailing = $parser->parseGroups('/(?<Foo>[a-z]+)|(?<Foo>[0-9]+)/J');
+		self::assertNotNull($trailing, 'the trailing spelling reads as the inline one does');
+		$groups = array_values($trailing->getCapturingGroups());
+		self::assertCount(2, $groups);
+		self::assertSame('Foo', $groups[0]->getName());
+		self::assertSame('Foo', $groups[1]->getName());
 	}
 
 	/**
@@ -328,8 +333,8 @@ final class RegexShapeReadingTest extends TestCase
 		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		// the engines each judged PHP bundles, pinned: the test says the same
 		// thing on every machine, whatever engine the runner links
-		$php74 = new RegexGroupParser(new PhpVersion(70400), $helper, new PHPRegexReader(new PhpVersion(70400), PcreVersion::fromString('10.33')));
-		$php84 = new RegexGroupParser(new PhpVersion(80400), $helper, new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44')));
+		$php74 = new RegexGroupParser(new PhpVersion(70400), new PHPRegexReader(new PhpVersion(70400), PcreVersion::fromString('10.33'), $helper));
+		$php84 = new RegexGroupParser(new PhpVersion(80400), new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'), $helper));
 
 		$this->resetParsedAstCache();
 		$result74 = $php74->parseGroups('/(a\x{ 41 })/');
@@ -350,8 +355,8 @@ final class RegexShapeReadingTest extends TestCase
 		// the reader is a service carrying its own target: no statics, no
 		// environment, one instance per judged PHP, and it hands back the
 		// parser's own tree, not a translation of it
-		$reader74 = new PHPRegexReader(new PhpVersion(70400), PcreVersion::fromString('10.33'));
-		$reader84 = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'));
+		$reader74 = new PHPRegexReader(new PhpVersion(70400), PcreVersion::fromString('10.33'), $helper);
+		$reader84 = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'), $helper);
 
 		$tree74 = $reader74->read('a\x{ 41 }', '', '/')->pattern;
 		$tree84 = $reader84->read('a\x{ 41 }', '', '/')->pattern;
@@ -446,6 +451,7 @@ final class RegexShapeReadingTest extends TestCase
 		// speaks for the analysed PHP when the two share a minor — a patch
 		// release carries whatever engine was current, and the baseline map
 		// only knows the minor's first
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		$targetOf = static function (PHPRegexReader $reader): string {
 			$reader->read('a', '', '/');
 
@@ -461,10 +467,10 @@ final class RegexShapeReadingTest extends TestCase
 		$minor = intdiv(PHP_VERSION_ID, 100) * 100;
 		$witness = PcreVersion::fromString(PcreVersion::fromRuntime()->getVersionString(), PcreVersion::SOURCE_RUNTIME);
 
-		self::assertSame('10.49', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.49', PcreVersion::SOURCE_CONFIG))), 'a pin is a statement, honoured above the baseline');
-		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42', PcreVersion::SOURCE_CONFIG))), 'a pin below the baseline narrows');
-		self::assertSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion($minor), $witness)), 'the running engine speaks for its own minor');
-		self::assertNotSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion(70400), $witness)), 'a witness from another minor stays silent');
+		self::assertSame('10.49', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.49', PcreVersion::SOURCE_CONFIG), $helper)), 'a pin is a statement, honoured above the baseline');
+		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42', PcreVersion::SOURCE_CONFIG), $helper)), 'a pin below the baseline narrows');
+		self::assertSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion($minor), $witness, $helper)), 'the running engine speaks for its own minor');
+		self::assertNotSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion(70400), $witness, $helper)), 'a witness from another minor stays silent');
 		self::assertSame('10.49', PcreVersion::fromString('10.49-RC1')->getVersionString(), 'a release candidate reads as its release');
 	}
 
@@ -534,6 +540,25 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame("'c'", $groups[2]->getType()->describe(VerbosityLevel::precise()));
 	}
 
+	public function testTheTrailingDuplicateNameModifierReads(): void
+	{
+		$parser = $this->createParser();
+
+		// PCRE truth: the trailing J allows duplicate names exactly as the
+		// inline (?J) spelling does — preg_match('/(?<x>a)(?<x>b)/J', 'ab')
+		// fills both groups and the name with the branch that ran
+		self::assertSame(1, preg_match('/(?<x>a)(?<x>b)/J', 'ab', $m));
+		self::assertSame('{"0":"ab","x":"b","1":"a","2":"b"}', json_encode($m), 'the engine fills both groups and the name with the branch that ran');
+
+		$this->resetParsedAstCache();
+		$result = $parser->parseGroups('/(?<x>a)(?<x>b)/J');
+
+		self::assertNotNull($result, 'the trailing J reads as the inline spelling does');
+		self::assertCount(2, $result->getCapturingGroups());
+		self::assertSame('x', $result->getCapturingGroups()[1]->getName());
+		self::assertSame('x', $result->getCapturingGroups()[2]->getName());
+	}
+
 	public function testTheMatchAndTheSubjectAreTwoChannels(): void
 	{
 		$parser = $this->createParser();
@@ -576,8 +601,8 @@ final class RegexShapeReadingTest extends TestCase
 		// an 8.2 project runs refuses it, so the shape is null and the
 		// invalid-pattern rule speaks about the running engine alone
 		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
-		$php82 = new RegexGroupParser(new PhpVersion(80200), $helper, new PHPRegexReader(new PhpVersion(80200), PcreVersion::fromString('10.40')));
-		$php84 = new RegexGroupParser(new PhpVersion(80400), $helper, new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44')));
+		$php82 = new RegexGroupParser(new PhpVersion(80200), new PHPRegexReader(new PhpVersion(80200), PcreVersion::fromString('10.40'), $helper));
+		$php84 = new RegexGroupParser(new PhpVersion(80400), new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'), $helper));
 
 		$this->resetParsedAstCache();
 		self::assertNull($php82->parseGroups('/(a\x{ 41 })/'), 'the engine PHP 8.2 bundles refuses the padded escape');

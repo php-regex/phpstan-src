@@ -11,6 +11,7 @@ use PHPStan\Analyser\NameScope;
 use PHPStan\Command\IgnoredRegexValidator;
 use PHPStan\File\FileExcluder;
 use PHPStan\Type\Regex\PHPRegexReader;
+use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\Php\ComposerPhpVersionFactory;
 use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
 use PHPStan\Php\PcreVersion;
@@ -90,6 +91,7 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 		try {
 			$composerPhpVersionFactory = new ComposerPhpVersionFactory([]);
 			$constantResolver = new ConstantResolver($reflectionProviderProvider, [], new ConfiguredPhpVersionRangeHelper(null, $composerPhpVersionFactory), container: null);
+			$initializerExprTypeResolver = new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true);
 
 			$phpDocParserConfig = new ParserConfig([]);
 			$ignoredRegexValidator = new IgnoredRegexValidator(
@@ -122,7 +124,7 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 
 						}),
 						$constantResolver,
-						new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true),
+						$initializerExprTypeResolver,
 						reportUnsafeArrayStringKeyCasting: null,
 					),
 				),
@@ -132,6 +134,7 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 				new PHPRegexReader(
 					new PhpVersion(PHP_VERSION_ID),
 					PcreVersion::fromRuntime(),
+					new RegexExpressionHelper($initializerExprTypeResolver),
 				),
 			);
 

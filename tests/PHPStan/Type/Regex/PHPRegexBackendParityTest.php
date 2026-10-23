@@ -55,8 +55,7 @@ final class PHPRegexBackendParityTest extends TestCase
 		$helper = (new \ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		$parser = new RegexGroupParser(
 			new PhpVersion(PHP_VERSION_ID),
-			$helper,
-			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime(), $helper),
 		);
 		$this->resetParsedAstCache();
 		$result = $parser->parseGroups($pattern);
@@ -161,8 +160,7 @@ final class PHPRegexBackendParityTest extends TestCase
 
 		return new RegexGroupParser(
 			new PhpVersion(PHP_VERSION_ID),
-			$helper,
-			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime(), $helper),
 		);
 	}
 
