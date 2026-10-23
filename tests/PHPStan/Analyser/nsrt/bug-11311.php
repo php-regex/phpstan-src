@@ -167,7 +167,7 @@ function (string $size): void {
 
 function (string $s): void {
 	if (preg_match('/Price: ([2-5])/i', $s, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType('array{non-falsy-string, non-falsy-string&numeric-string}', $matches);
+		assertType('array{non-falsy-string, \'2\'|\'3\'|\'4\'|\'5\'}', $matches);
 	}
 };
 
