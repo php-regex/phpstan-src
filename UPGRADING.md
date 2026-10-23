@@ -5,6 +5,32 @@ Upgrading from PHPStan 1.x to 2.0
 
 PHPStan now requires PHP 7.4 or newer to run.
 
+## Regex shapes are read through the PHPRegex parser
+
+Regex functions like `preg_match()` are now typed from [PHPRegex](https://github.com/php-regex/php-regex),
+a pure-PHP PCRE2 parser that knows which PHP and PCRE2 release it judges for,
+replacing the vendored PCRE grammar (forked from Hoa's). Most patterns keep
+their shapes; the ones that change, change toward what the engine does:
+
+- `/(a)(\1)/` types the second group as `string`, not the literal `'1'` the
+  backreference spelling was read as.
+- Constructs the grammar refused — `\g{1}`, `\k<name>`, `(*PRUNE)`-family
+  verbs, `(?C)` callouts, `\Q..\E` runs, assertion conditions — produce
+  shapes instead of falling back to `array<string, string|null>`.
+- Under `/x`, whitespace and `\Q..\E` are read as the engine reads them;
+  subjects stop being typed non-falsy on whitespace the engine skips.
+- The `(?n)` option turns capturing off from where it stands; the shapes
+  no longer carry a group the engine never fills.
+- The read is judged for the analysed PHP, not the running one: a padded
+  `\x{ 41 }` escape is the letter A on engines from 10.43 and the letter
+  x then text on older ones. An engine older than the one the analysed
+  PHP bundles can be named with the `pcreVersion` parameter or
+  `config.platform.lib-pcre` in composer.json; the pin only narrows.
+
+If an inferred `$matches` type narrows past what your code expects, the
+baseline is the place to say so — each change above is verifiable against
+the engine with a one-line `preg_match()`.
+
 ## Upgrading guide for end users
 
 The best way to get ready for upgrade to PHPStan 2.0 is to update to the **latest PHPStan 1.12 release**
