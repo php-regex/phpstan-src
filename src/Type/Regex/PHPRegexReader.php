@@ -4,6 +4,7 @@ namespace PHPStan\Type\Regex;
 
 use PHPRegex\Parser\Exception\RegexException;
 use PHPRegex\Parser\Node\RegexNode;
+use PHPRegex\Parser\Syntax\Delimiters;
 use PHPRegex\Parser\PcreTarget;
 use PHPRegex\Parser\RegexParser;
 use PHPStan\DependencyInjection\AutowiredService;
@@ -43,6 +44,20 @@ final class PHPRegexReader
 		$this->parser ??= RegexParser::create($this->targetOptions());
 
 		return $this->parser->parsePattern($rawRegex, $modifiers, $delimiter);
+	}
+
+	/**
+	 * Whether the engine the judged target runs accepts the pattern: the
+	 * parser validates for the target it reads for, so a construct the
+	 * running engine takes but the analysed one predates is refused here.
+	 */
+	public function accepts(string $rawRegex, string $modifiers, string $delimiter): bool
+	{
+		$this->parser ??= RegexParser::create($this->targetOptions());
+
+		$regex = $delimiter . $rawRegex . Delimiters::closing($delimiter) . $modifiers;
+
+		return $this->parser->validate($regex)->isValid;
 	}
 
 	/**
