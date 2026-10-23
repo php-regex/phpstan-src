@@ -4,12 +4,15 @@ namespace PHPStan\Command;
 
 use Nette\Utils\Strings;
 use PHPRegex\Parser\Exception\RegexException;
+use PHPRegex\Parser\Node\AlternationNode;
+use PHPRegex\Parser\Node\AnchorNode;
+use PHPRegex\Parser\Node\NodeInterface;
+use PHPRegex\Parser\Node\SequenceNode;
 use PHPStan\PhpDoc\TypeStringResolver;
 use PHPStan\PhpDocParser\Parser\ParserException;
 use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\ObjectType;
-use PHPStan\Type\Regex\PHPRegexTreeNodeBuilder;
-use PHPStan\Type\Regex\RegexTreeNode;
+use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\VerbosityLevel;
 use function count;
 use function strrpos;
@@ -20,7 +23,7 @@ final class IgnoredRegexValidator
 
 	public function __construct(
 		private TypeStringResolver $typeStringResolver,
-		private PHPRegexTreeNodeBuilder $treeNodeBuilder,
+		private PHPRegexReader $reader,
 	)
 	{
 	}
@@ -31,7 +34,7 @@ final class IgnoredRegexValidator
 		$regex = $this->removeDelimiters($regex);
 
 		try {
-			$ast = $this->treeNodeBuilder->parse($regex, '', $delimiter);
+			$root = $this->reader->read($regex, '', $delimiter);
 		} catch (RegexException) {
 			return new IgnoredRegexValidatorResult(ignoredTypes: [], anchorsInTheMiddle: false, allErrorsIgnored: false);
 		}
@@ -44,8 +47,8 @@ final class IgnoredRegexValidator
 		}
 
 		return new IgnoredRegexValidatorResult(
-			ignoredTypes: $this->getIgnoredTypes($ast),
-			anchorsInTheMiddle: $this->hasAnchorsInTheMiddle($ast),
+			ignoredTypes: $this->getIgnoredTypes($root->pattern, $root->source ?? $regex),
+			anchorsInTheMiddle: $this->hasAnchorsInTheMiddle($root->pattern),
 			allErrorsIgnored: false,
 		);
 	}
@@ -53,20 +56,15 @@ final class IgnoredRegexValidator
 	/**
 	 * @return array<string, string>
 	 */
-	private function getIgnoredTypes(RegexTreeNode $ast): array
+	private function getIgnoredTypes(NodeInterface $ast, string $source): array
 	{
-		$alternation = $ast->getChild(0);
-		if ($alternation === null) {
-			return [];
-		}
-
-		if ($alternation->getId() !== '#alternation') {
+		if (!$ast instanceof AlternationNode) {
 			return [];
 		}
 
 		$types = [];
-		foreach ($alternation->getChildren() as $child) {
-			$text = $this->getText($child);
+		foreach ($ast->alternatives as $alternative) {
+			$text = $this->getText($alternative, $source);
 			if ($text === null) {
 				continue;
 			}
@@ -109,16 +107,17 @@ final class IgnoredRegexValidator
 		return substr($regex, 1, $endDelimiterPosition - 1);
 	}
 
-	private function getText(RegexTreeNode $treeNode): ?string
+	/**
+	 * The text of a branch as it was written, escapes included: the tree
+	 * decodes them, so each leaf is sliced from the source between its
+	 * positions, whatever the leaf spells.
+	 */
+	private function getText(NodeInterface $node, string $source): ?string
 	{
-		if ($treeNode->getId() === 'token') {
-			return $treeNode->getValueValue();
-		}
-
-		if ($treeNode->getId() === '#concatenation') {
+		if ($node instanceof SequenceNode) {
 			$fullText = '';
-			foreach ($treeNode->getChildren() as $child) {
-				$text = $this->getText($child);
+			foreach ($node->children as $child) {
+				$text = $this->getText($child, $source);
 				if ($text === null) {
 					continue;
 				}
@@ -133,22 +132,26 @@ final class IgnoredRegexValidator
 			return $fullText;
 		}
 
-		return null;
+		if ($node->getChildren() !== []) {
+			return null;
+		}
+
+		return substr($source, $node->getStartPosition(), $node->getEndPosition() - $node->getStartPosition());
 	}
 
-	private function hasAnchorsInTheMiddle(RegexTreeNode $ast): bool
+	private function hasAnchorsInTheMiddle(NodeInterface $ast): bool
 	{
-		if ($ast->getId() === 'token') {
-			$valueArray = $ast->getValue();
-
-			return $valueArray['token'] === 'anchor' && $valueArray['value'] === '$';
+		if ($ast instanceof AnchorNode) {
+			return $ast->value === '$';
 		}
-		$childrenCount = count($ast->getChildren());
-		foreach ($ast->getChildren() as $i => $child) {
+
+		$children = $ast instanceof SequenceNode ? $ast->children : $ast->getChildren();
+		$childrenCount = count($children);
+		foreach ($children as $i => $child) {
 			$has = $this->hasAnchorsInTheMiddle($child);
 			if (
 				$has
-				&& ($ast->getId() !== '#concatenation' || $i !== $childrenCount - 1)
+				&& (!$ast instanceof SequenceNode || $i !== $childrenCount - 1)
 			) {
 				return true;
 			}
