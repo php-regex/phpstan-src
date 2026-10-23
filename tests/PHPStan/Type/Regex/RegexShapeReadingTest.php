@@ -37,7 +37,7 @@ final class RegexShapeReadingTest extends TestCase
 			$parser = new RegexGroupParser(
 				new PhpVersion(PHP_VERSION_ID),
 				$helper,
-				new PHPRegexTreeNodeBuilder(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+				new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
 			);
 
 			$this->resetParsedAstCache();
@@ -56,7 +56,7 @@ final class RegexShapeReadingTest extends TestCase
 		return new RegexGroupParser(
 			new PhpVersion(PHP_VERSION_ID),
 			$helper,
-			new PHPRegexTreeNodeBuilder(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
+			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime()),
 		);
 	}
 
@@ -265,24 +265,29 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame([], $result->getCapturingGroups(), 'the walk must not report a capturing group');
 	}
 
-	public function testTreeNodeCarriesTheWalkersSurface(): void
+	public function testTheReaderHandsBackTheParserOwnTree(): void
 	{
-		$leaf = new RegexTreeNode('token', ['token' => 'literal', 'value' => 'a', 'namespace' => 'default']);
-		$root = new RegexTreeNode('#concatenation', null, [$leaf]);
+		// no translation layer stands between the walkers and the parser's
+		// AST: what read() returns is what the parser built, walked as is
+		$reader = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'));
 
-		self::assertSame('#concatenation', $root->getId());
-		self::assertNull($root->getValueToken());
-		self::assertSame('literal', $leaf->getValueToken());
-		self::assertSame('a', $leaf->getValueValue());
-		self::assertSame($leaf, $root->getChild(0));
-		self::assertNull($root->getChild(1));
-		self::assertSame(1, $root->getChildrenNumber());
-		self::assertCount(1, $root->getChildren());
+		$tree = $reader->read('(a)', '', '/');
+		self::assertInstanceOf(\PHPRegex\Parser\Node\RegexNode::class, $tree);
+		$body = $tree->pattern;
+		self::assertInstanceOf(\PHPRegex\Parser\Node\GroupNode::class, $body);
+		self::assertSame(\PHPRegex\Parser\Node\GroupType::Capturing(), $body->type);
+		self::assertInstanceOf(\PHPRegex\Parser\Node\LiteralNode::class, $body->child);
+		self::assertSame('a', $body->child->value);
 
-		$replaced = new RegexTreeNode('token', ['token' => 'literal', 'value' => '']);
-		$root->setChildren([$leaf, $replaced]);
-		self::assertSame(2, $root->getChildrenNumber());
-		self::assertSame('default', $root->getChildren()[0]->getValue()['namespace'] ?? null);
+		$tree = $reader->read('a|b', '', '/');
+		self::assertInstanceOf(\PHPRegex\Parser\Node\AlternationNode::class, $tree->pattern);
+		self::assertCount(2, $tree->pattern->alternatives);
+
+		$tree = $reader->read('a{2,4}', '', '/');
+		self::assertInstanceOf(\PHPRegex\Parser\Node\QuantifierNode::class, $tree->pattern);
+		$bounds = \PHPRegex\Parser\Node\QuantifierBounds::parse($tree->pattern->quantifier);
+		self::assertSame(2, $bounds->min);
+		self::assertSame(4, $bounds->max);
 	}
 
 	public function testDuplicateGroupNamesKeepTheirShapesInlineAndStayRefusedTrailing(): void
@@ -316,8 +321,8 @@ final class RegexShapeReadingTest extends TestCase
 		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		// the engines each judged PHP bundles, pinned: the test says the same
 		// thing on every machine, whatever engine the runner links
-		$php74 = new RegexGroupParser(new PhpVersion(70400), $helper, new PHPRegexTreeNodeBuilder(new PhpVersion(70400), PcreVersion::fromString('10.33')));
-		$php84 = new RegexGroupParser(new PhpVersion(80400), $helper, new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.44')));
+		$php74 = new RegexGroupParser(new PhpVersion(70400), $helper, new PHPRegexReader(new PhpVersion(70400), PcreVersion::fromString('10.33')));
+		$php84 = new RegexGroupParser(new PhpVersion(80400), $helper, new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44')));
 
 		$this->resetParsedAstCache();
 		$result74 = $php74->parseGroups('/(a\x{ 41 })/');
@@ -335,23 +340,35 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertNotInstanceOf(ConstantStringType::class, $group84, '8.x reads the padded escape');
 
 		// the reader is a service carrying its own target: no statics, no
-		// environment, one instance per judged PHP
-		$reader74 = new PHPRegexTreeNodeBuilder(new PhpVersion(70400), PcreVersion::fromString('10.33'));
-		$reader84 = new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.44'));
+		// environment, one instance per judged PHP, and it hands back the
+		// parser's own tree, not a translation of it
+		$reader74 = new PHPRegexReader(new PhpVersion(70400), PcreVersion::fromString('10.33'));
+		$reader84 = new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'));
 
-		$tree74 = $reader74->parse('a\x{ 41 }', '', '/');
-		$tree84 = $reader84->parse('a\x{ 41 }', '', '/');
+		$tree74 = $reader74->read('a\x{ 41 }', '', '/')->pattern;
+		$tree84 = $reader84->read('a\x{ 41 }', '', '/')->pattern;
 
-		$fingerprint = static function (RegexTreeNode $n) use (&$fingerprint): string {
+		$fingerprint = static function (\PHPRegex\Parser\Node\NodeInterface $n) use (&$fingerprint): string {
 			$children = '';
 			foreach ($n->getChildren() as $child) {
 				$children .= $fingerprint($child);
 			}
 
-			return sprintf('(%s|%s|%s)', $n->getId(), (string) $n->getValueToken(), (string) $n->getValueValue()) . $children;
+			$name = (new ReflectionClass($n))->getShortName();
+			$detail = '';
+			foreach (['value', 'quantifier', 'type', 'isNegated'] as $prop) {
+				$propValue = $n->$prop ?? null;
+				if ($propValue !== null && (is_string($propValue) || is_int($propValue) || is_bool($propValue))) {
+					$detail .= '|' . $propValue;
+				} elseif ($propValue !== null) {
+					$detail .= '|<' . (new ReflectionClass($propValue))->getShortName() . '>';
+				}
+			}
+
+			return sprintf('(%s%s)', $name, $detail) . $children;
 		};
 
-		self::assertSame($fingerprint($tree74), $fingerprint($reader74->parse('a\x{ 41 }', '', '/')), 'the same target reads the same tree twice');
+		self::assertSame($fingerprint($tree74), $fingerprint($reader74->read('a\x{ 41 }', '', '/')->pattern), 'the same target reads the same tree twice');
 		self::assertNotSame($fingerprint($tree74), $fingerprint($tree84), 'the two targets build two trees');
 	}
 
@@ -416,14 +433,14 @@ final class RegexShapeReadingTest extends TestCase
 		// the analysed PHP bundles its own engine; config or composer.json
 		// can only narrow below it, never raise the judged engine above
 		// what that PHP can run
-		$targetOf = static function (PHPRegexTreeNodeBuilder $builder): string {
-			$builder->parse('a', '', '/');
+		$targetOf = static function (PHPRegexReader $reader): string {
+			$reader->read('a', '', '/');
 
-			$property = new ReflectionProperty(PHPRegexTreeNodeBuilder::class, 'parser');
+			$property = new ReflectionProperty(PHPRegexReader::class, 'parser');
 			$property->setAccessible(true);
 
 			/** @var \PHPRegex\Parser\RegexParser $parser */
-			$parser = $property->getValue($builder);
+			$parser = $property->getValue($reader);
 
 			return $parser->target()->pcreVersion;
 		};
@@ -431,9 +448,9 @@ final class RegexShapeReadingTest extends TestCase
 		// pinned, not read from the runner's engine: the test says the same
 		// thing on every machine
 		$runtimeEngine = PcreVersion::fromString('10.49');
-		self::assertSame('10.44', $targetOf(new PHPRegexTreeNodeBuilder(new PhpVersion(80400), $runtimeEngine)), 'a pin above the bundled engine is ignored');
-		self::assertSame('10.42', $targetOf(new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.42'))), 'a pin below the bundled engine narrows');
-		self::assertSame('10.44', $targetOf(new PHPRegexTreeNodeBuilder(new PhpVersion(80400), PcreVersion::fromString('10.44'))), 'a pin at the bundled engine judges it');
+		self::assertSame('10.44', $targetOf(new PHPRegexReader(new PhpVersion(80400), $runtimeEngine)), 'a pin above the bundled engine is ignored');
+		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42'))), 'a pin below the bundled engine narrows');
+		self::assertSame('10.44', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'))), 'a pin at the bundled engine judges it');
 	}
 
 	public function testEngineRefusedPatternsGetNoShapeAndBracketDelimitersWalk(): void
