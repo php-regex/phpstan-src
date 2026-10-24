@@ -51,6 +51,22 @@ their shapes; the ones that change, change toward what the engine does:
 - `preg_match_all()` under `PREG_PATTERN_ORDER` types the named columns
   it can read, not `array<list<string>>`.
 
+- Captures and the whole match narrow to the constants the engine
+  enumerates: `'a'|'b'|'c'`, the digits of a class, `'£'|'€'` past seven
+  bits under `i` without `u` — where the old grammar wrote
+  `non-empty-string` and lost the shape on any verb.
+- A `(?|…)` branch reset numbers each branch from the same base, as the
+  engine does; the shapes read the number every branch captures, and
+  `bug11291` types what its `pcre.org` reference always said (the old
+  pin was falsified by its own `"bc"` run).
+- Duplicate names written by a branch reset, not only by `J`, keep the
+  union of the groups that carry the name.
+- A subject that may be a string narrows on a true match: the string
+  arm takes the accessories the match leaves open, a null the engine
+  would coerce to the empty string goes where the pattern admits it,
+  and an int stays an int (`int|non-falsy-string` after
+  `preg_match('/^(a|b|c)$/', $x)`).
+
 If an inferred `$matches` type narrows past what your code expects, the
 baseline is the place to say so — each change above is verifiable against
 the engine with a one-line `preg_match()`.

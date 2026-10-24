@@ -903,15 +903,15 @@ function bugUnescapedDashAfterRange (string $string): void
 
 function bugEmptySubexpression (string $string): void {
 	if (preg_match('//', $string, $matches)) {
-		assertType("array{''}", $matches); // could be array{''}
+		assertType("array{''}", $matches);
 	}
 
 	if (preg_match('/()/', $string, $matches)) {
-		assertType("array{'', ''}", $matches); // could be array{'', ''}
+		assertType("array{'', ''}", $matches);
 	}
 
 	if (preg_match('/|/', $string, $matches)) {
-		assertType("array{''}", $matches); // could be array{''}
+		assertType("array{''}", $matches);
 	}
 
 	if (preg_match('~|(a)~', $string, $matches)) {
@@ -964,7 +964,7 @@ function bug11744(string $string): void
 function bug12749(string $str): void
 {
 	if (preg_match('/[A-Z]/', $str, $match)) {
-		assertType('array{\'A\'|\'B\'|\'C\'|\'D\'|\'E\'|\'F\'|\'G\'|\'H\'|\'I\'|\'J\'|\'K\'|\'L\'|\'M\'|\'N\'|\'O\'|\'P\'|\'Q\'|\'R\'|\'S\'|\'T\'|\'U\'|\'V\'|\'W\'|\'X\'|\'Y\'|\'Z\'}', $match); // could be non-falsy-string
+		assertType('array{\'A\'|\'B\'|\'C\'|\'D\'|\'E\'|\'F\'|\'G\'|\'H\'|\'I\'|\'J\'|\'K\'|\'L\'|\'M\'|\'N\'|\'O\'|\'P\'|\'Q\'|\'R\'|\'S\'|\'T\'|\'U\'|\'V\'|\'W\'|\'X\'|\'Y\'|\'Z\'}', $match); // the wish granted and exceeded: the constants enumerate
 	}
 }
 
@@ -1007,7 +1007,7 @@ function bug12749e(string $str): void
 function bug12749f(string $str): void
 {
 	if (preg_match('/^[0-9]$/', $str, $match)) {
-		assertType('array{\'0\'|\'1\'|\'2\'|\'3\'|\'4\'|\'5\'|\'6\'|\'7\'|\'8\'|\'9\'}', $match); // could be numeric-string
+		assertType('array{\'0\'|\'1\'|\'2\'|\'3\'|\'4\'|\'5\'|\'6\'|\'7\'|\'8\'|\'9\'}', $match); // the wish granted and exceeded: the digits enumerate
 	}
 }
 
@@ -1018,15 +1018,15 @@ function bug12397(string $string): void {
 
 function bug12792(string $string): void {
 	if (preg_match('~a\Kb~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{'b'}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a\K~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{''}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a\K.+~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{non-empty-string}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a\K.*~', $string, $match) === 1) {
@@ -1034,7 +1034,7 @@ function bug12792(string $string): void {
 	}
 
 	if (preg_match('~a\K(.+)~', $string, $match) === 1) {
-		assertType('array{string, non-empty-string}', $match); // could be array{non-empty-string, non-empty-string}
+		assertType('array{string, non-empty-string}', $match);
 	}
 
 	if (preg_match('~a\K(.*)~', $string, $match) === 1) {
@@ -1042,7 +1042,7 @@ function bug12792(string $string): void {
 	}
 
 	if (preg_match('~a\K(.+?)~', $string, $match) === 1) {
-		assertType('array{string, non-empty-string}', $match); // could be array{non-empty-string, non-empty-string}
+		assertType('array{string, non-empty-string}', $match);
 	}
 
 	if (preg_match('~a\K(.*?)~', $string, $match) === 1) {
@@ -1050,27 +1050,27 @@ function bug12792(string $string): void {
 	}
 
 	if (preg_match('~a\K(?=.+)~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{''}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a\K(?=.*)~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{''}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a(?:x\Kb|c)~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{'ac'|'b'}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a(?:c|x\Kb)~', $string, $match) === 1) {
-		assertType('array{string}', $match); // could be array{'ac'|'b'}
+		assertType('array{string}', $match);
 	}
 
 	if (preg_match('~a(y|(?:x\Kb|c))d~', $string, $match) === 1) {
-		assertType('array{string, \'c\'|\'xb\'|\'y\'}', $match); // could be array{'acd'|'ayd'|'bd', 'c'|'xb'|'y'}
+		assertType('array{string, \'c\'|\'xb\'|\'y\'}', $match);
 	}
 
 	if (preg_match('~a((?:c|x\Kb)|y)d~', $string, $match) === 1) {
-		assertType('array{string, \'c\'|\'xb\'|\'y\'}', $match); // could be array{'acd'|'ayd'|'bd', 'c'|'xb'|'y'}
+		assertType('array{string, \'c\'|\'xb\'|\'y\'}', $match);
 	}
 }
 
