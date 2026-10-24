@@ -124,22 +124,18 @@ final class RegularExpressionPatternRule implements Rule
 
 	private function validatePattern(string $pattern): ?string
 	{
-		// the pattern is judged for the analysed PHP and its engine — the
-		// project crashes on its own machine, whatever the runner takes —
-		// and the running engine stays a second witness: a construct the
-		// parser misjudges still reports
-		$refusal = $this->reader->refusalOfExpression($pattern);
-		if ($refusal !== null) {
-			return $refusal;
-		}
-
+		// the running engine keeps its word first: every message a
+		// baseline ever wrote against stays, and the analysed engine
+		// speaks only for a pattern the running one compiles and the
+		// analysed project's engine refuses — the crash the project
+		// meets on its own machine, invisible here
 		try {
 			Strings::match('', $pattern);
 		} catch (RegexpException $e) {
 			return $e->getMessage();
 		}
 
-		return null;
+		return $this->reader->refusalOfExpression($pattern);
 	}
 
 }

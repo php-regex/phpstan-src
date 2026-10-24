@@ -1,5 +1,7 @@
-Upgrading from PHPStan 1.x to 2.0
-=================================
+# The regex pipeline reads through the PHPRegex parser
+
+The change log of the pull request that replaces the vendored Hoa PCRE
+grammar; the sections below are the standing upgrade guides.
 
 ## PHP version requirements
 
@@ -68,6 +70,10 @@ their shapes; the ones that change, change toward what the engine does:
   `preg_match('/^(a|b|c)$/', $x)`).
 
 If an inferred `$matches` type narrows past what your code expects, the
+- `preg_split()` with a limit or a flags value no constant names keeps
+  the generic list type (`non-empty-list<string>|false`, offset pairs
+  where the flags may ask for them) instead of collapsing to a bare
+  `false`.
 baseline is the place to say so — each change above is verifiable against
 the engine with a one-line `preg_match()`.
 

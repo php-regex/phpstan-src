@@ -26,119 +26,127 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 
 	public function testValidRegexPattern(): void
 	{
+		$messagePart = 'alphanumeric or backslash';
+		if (PHP_VERSION_ID >= 80200) {
+			$messagePart = 'alphanumeric, backslash, or NUL';
+		}
+		if (PHP_VERSION_ID >= 80400) {
+			$messagePart = 'alphanumeric, backslash, or NUL byte';
+		}
+
 		$this->analyse(
 			[__DIR__ . '/data/valid-regex-pattern.php'],
 			[
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					6,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					7,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					11,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					12,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					16,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					17,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					21,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					22,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					26,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					27,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					29,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					29,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					32,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					33,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					35,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					35,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					38,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					39,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					41,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					41,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nonok#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok', $messagePart),
 					43,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 1 in pattern: ~(~',
 					43,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nok(?:.*nok(?:.*)#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok(?:.*)', $messagePart),
 					57,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nok(?:.*nok(?:.*)#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok(?:.*)', $messagePart),
 					58,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 7',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 7 in pattern: ~((?:.*)~',
 					59,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nok(?:.*)nono#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok(?:.*)nono', $messagePart),
 					61,
 				],
 				[
-					'Regex pattern is invalid: Invalid delimiter "n". Delimiters must not be alphanumeric, backslash, or NUL byte. Try #nok(?:.*)nope#.',
+					sprintf('Regex pattern is invalid: Delimiter must not be %s in pattern: nok(?:.*)nope', $messagePart),
 					62,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 7',
+					'Regex pattern is invalid: Compilation failed: missing closing parenthesis at offset 7 in pattern: ~((?:.*)~',
 					63,
 				],
 			],
@@ -168,7 +176,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 			__DIR__ . '/../../Analyser/nsrt/preg_match_shapes.php',
 			[
 				[
-					"Regex pattern is invalid: Unknown regex flag(s) found: \"y\", \"z\" at offset 17",
+					"Regex pattern is invalid: Unknown modifier 'y' in pattern: /(foo)(bar)(baz)/xyz",
 					124,
 				],
 			],
