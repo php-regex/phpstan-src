@@ -43,7 +43,7 @@ use function spl_object_id;
 final class RegexGroupParser
 {
 
-	/** @var array<string, ?array{CaptureShape, RegexNode}> */
+	/** @var array<string, ?RegexAstWalkResult> */
 	private static array $parsedShapes = [];
 
 	public function __construct(
@@ -59,27 +59,21 @@ final class RegexGroupParser
 		// runs: the same regex read for two of either must not share a shape
 		$cacheKey = $this->phpVersion->getVersionId() . "\n" . $this->reader->judgedPcreVersion() . "\n" . $regex;
 
+		// the pattern is judged for the analysed PHP and the engine its
+		// target runs: one that engine refuses carries no shape, whatever
+		// the running engine says about it
 		if (array_key_exists($cacheKey, self::$parsedShapes)) {
-			$cached = self::$parsedShapes[$cacheKey];
-			if ($cached === null) {
-				return null;
-			}
-
-			[$shape, $ast] = $cached;
-		} else {
-			// the pattern is judged for the analysed PHP and the engine its
-			// target runs: one that engine refuses carries no shape, whatever
-			// the running engine says about it
-			$ast = $this->reader->readExpression($regex);
-			if ($ast === null) {
-				return self::$parsedShapes[$cacheKey] = null;
-			}
-
-			$shape = (new CaptureShapeAnalyzer())->analyze($ast);
-			self::$parsedShapes[$cacheKey] = [$shape, $ast];
+			return self::$parsedShapes[$cacheKey];
 		}
 
-		return $this->buildWalkResult($shape, $ast->pattern);
+		$ast = $this->reader->readExpression($regex);
+		if ($ast === null) {
+			return self::$parsedShapes[$cacheKey] = null;
+		}
+
+		$shape = (new CaptureShapeAnalyzer())->analyze($ast);
+
+		return self::$parsedShapes[$cacheKey] = $this->buildWalkResult($shape, $ast->pattern);
 	}
 
 	/**
@@ -88,7 +82,7 @@ final class RegexGroupParser
 	 */
 	private function buildWalkResult(CaptureShape $shape, NodeInterface $pattern): RegexAstWalkResult
 	{
-		$topology = $this->collectTopology($pattern, null, null, 0, ['alternationNodes' => [], 'groups' => [], 'nonCapturing' => []]);
+		$topology = $this->collectTopology($pattern, null, null, 0, ['alternationNodes' => [], 'groups' => [], 'nonCapturing' => [], 'nextNumber' => 1]);
 
 		$walkResult = RegexAstWalkResult::createEmpty();
 		foreach ($shape->marks as $mark) {
@@ -146,7 +140,9 @@ final class RegexGroupParser
 			if ($entry['alternation'] !== null) {
 				$alternationObject = $alternations[spl_object_id($entry['alternation'])] ?? null;
 				if ($alternationObject !== null) {
-					$alternationObject->pushGroup($entry['branch'], $group);
+					foreach ($entry['branches'] as $branch) {
+						$alternationObject->pushGroup($branch, $group);
+					}
 				}
 			}
 		}
@@ -177,8 +173,8 @@ final class RegexGroupParser
 	 * the engine does; the topology walks the tree the same way, so a
 	 * number finds its node.
 	 *
-	 * @param array{alternationNodes: list<array{node: NodeInterface, branches: int}>, groups: array<int, array{node: GroupNode, parent: ?int, alternation: ?NodeInterface, branch: int, inOptional: bool}>, nonCapturing: array<int, array{parent: ?int, alternation: ?NodeInterface, inOptional: bool, resets: bool}>} $topology
-	 * @return array{alternationNodes: list<array{node: NodeInterface, branches: int}>, groups: array<int, array{node: GroupNode, parent: ?int, alternation: ?NodeInterface, branch: int, inOptional: bool}>, nonCapturing: array<int, array{parent: ?int, alternation: ?NodeInterface, inOptional: bool, resets: bool}>}
+	 * @param array{alternationNodes: list<array{node: NodeInterface, branches: int}>, groups: array<int, array{node: GroupNode, parent: ?int, alternation: ?NodeInterface, branches: list<int>, inOptional: bool}>, nonCapturing: array<int, array{parent: ?int, alternation: ?NodeInterface, inOptional: bool, resets: bool}>, nextNumber: int} $topology
+	 * @return array{alternationNodes: list<array{node: NodeInterface, branches: int}>, groups: array<int, array{node: GroupNode, parent: ?int, alternation: ?NodeInterface, branches: list<int>, inOptional: bool}>, nonCapturing: array<int, array{parent: ?int, alternation: ?NodeInterface, inOptional: bool, resets: bool}>, nextNumber: int}
 	 */
 	private function collectTopology(
 		NodeInterface $node,
@@ -199,10 +195,17 @@ final class RegexGroupParser
 		}
 
 		if ($node instanceof DefineNode) {
-			// the engine never fills what a (?(DEFINE)...) block defines: the
-			// group it counts stays optional forever, and nothing else in the
-			// topology can tell — the shape says the rest
-			return $this->collectTopology($node->content, $parentId, null, 0, $topology, true);
+			// the engine never fills what a (?(DEFINE)...) block defines: a
+			// wrapper nothing runs marks every group below it optional,
+			// through the parent chain the matcher reads
+			$topology['nonCapturing'][spl_object_id($node)] = [
+				'parent' => $parentId,
+				'alternation' => $alternation,
+				'inOptional' => true,
+				'resets' => false,
+			];
+
+			return $this->collectTopology($node->content, spl_object_id($node), null, 0, $topology);
 		}
 
 		if ($node instanceof ConditionalNode) {
@@ -232,14 +235,49 @@ final class RegexGroupParser
 			);
 		}
 
+		if ($node instanceof GroupNode && $node->type === GroupType::BranchReset()) {
+			// each branch numbers its groups from the same base, and the
+			// next group follows the longest branch; the branches are as
+			// exclusive as an alternation's, the matcher reads them so, and
+			// the wrapper itself says the counter resets, the way a group
+			// under it tells
+			$topology['nonCapturing'][spl_object_id($node)] = [
+				'parent' => $parentId,
+				'alternation' => $alternation,
+				'inOptional' => $inOptionalQuantification,
+				'resets' => true,
+			];
+			$base = $topology['nextNumber'];
+			$end = $base;
+			$branchAlternation = $node->child instanceof AlternationNode ? $node->child : null;
+			if ($branchAlternation !== null) {
+				$topology['alternationNodes'][] = ['node' => $branchAlternation, 'branches' => count($branchAlternation->alternatives)];
+				$branches = $branchAlternation->alternatives;
+			} else {
+				$branches = [$node->child];
+			}
+			foreach ($branches as $i => $branch) {
+				$topology['nextNumber'] = $base;
+				$topology = $this->collectTopology($branch, spl_object_id($node), $branchAlternation, $i, $topology, $inOptionalQuantification);
+				$end = max($end, $topology['nextNumber']);
+			}
+			$topology['nextNumber'] = $end;
+
+			return $topology;
+		}
+
 		if ($node instanceof GroupNode) {
 			if ($node->type === GroupType::Capturing() || $node->type === GroupType::Named()) {
-				$number = count($topology['groups']) + 1;
+				$number = $topology['nextNumber'];
+				$topology['nextNumber'] = $number + 1;
+				$entry = $topology['groups'][$number] ?? null;
 				$topology['groups'][$number] = [
 					'node' => $node,
 					'parent' => $parentId,
 					'alternation' => $alternation,
-					'branch' => $branch,
+					// a branch reset numbers one group per branch: the same
+					// number captures in each of them
+					'branches' => [...($entry['branches'] ?? []), $branch],
 					'inOptional' => $inOptionalQuantification,
 				];
 				$parentId = spl_object_id($node);
@@ -248,7 +286,7 @@ final class RegexGroupParser
 					'parent' => $parentId,
 					'alternation' => $alternation,
 					'inOptional' => $inOptionalQuantification,
-					'resets' => $node->type === GroupType::BranchReset(),
+					'resets' => false,
 				];
 				$parentId = spl_object_id($node);
 			}

@@ -12,10 +12,12 @@ use const PCRE_VERSION;
 /**
  * Represents the PCRE2 release the regex reads are judged for, the
  * engine-side twin of PhpVersion. The version is stored as major * 100 +
- * minor (e.g. 1042 for 10.42). The analysed PHP bundles its own engine; a
- * config or composer.json pin can only narrow below it. Extension
- * developers can access it by injecting PcreVersion via constructor
- * injection.
+ * minor (e.g. 1042 for 10.42); a release candidate reads as its release.
+ * The source says how much the version claims: a pin from the
+ * `pcreVersion` parameter or `config.platform.lib-pcre` is a statement
+ * about the analysed project, the runtime is a witness that speaks for
+ * the analysed PHP when the two share a minor. Extension developers can
+ * access it by injecting PcreVersion via constructor injection.
  *
  * @api
  */

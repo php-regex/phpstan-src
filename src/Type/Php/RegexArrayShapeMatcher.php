@@ -286,20 +286,51 @@ final class RegexArrayShapeMatcher
 		);
 
 		$countGroups = count($captureGroups);
+		$composed = [];
+		$names = [];
 		$i = 0;
 		foreach ($captureGroups as $captureGroup) {
 			$isTrailingOptional = $i >= $countGroups - $trailingOptionals;
 			$isLastGroup = $i === $countGroups - 1;
 			$groupValueType = $this->createGroupValueType($captureGroup, $wasMatched, $flags, $isTrailingOptional, $isLastGroup, $matchesAll);
 			$optional = $this->isGroupOptional($captureGroup, $wasMatched, $flags, $isTrailingOptional, $matchesAll);
+			$composed[$i] = [$captureGroup, $groupValueType, $optional];
 
 			if ($captureGroup->isNamed()) {
 				$forceList = false;
 
+				// the name writes whichever carrier ran: the union of the
+				// live ones, or the unmatched marker when the arm leaves
+				// every carrier out - a carrier the arm forces to the
+				// unmatched marker does not join the union
+				$forced = $captureGroup->getForceType();
+				$unmatched = $this->getUnmatchedGroupType($flags);
+				$live = $forced === null || $forced->equals($unmatched) === false;
+				$names[$captureGroup->getName()] ??= ['type' => null, 'live' => false, 'optional' => true, 'index' => $i];
+				if ($live) {
+					$names[$captureGroup->getName()]['live'] = true;
+					$names[$captureGroup->getName()]['type'] = $names[$captureGroup->getName()]['type'] === null
+						? $groupValueType
+						: TypeCombinator::union($names[$captureGroup->getName()]['type'], $groupValueType);
+					if (!$optional) {
+						$names[$captureGroup->getName()]['optional'] = false;
+					}
+				}
+			}
+
+			$i++;
+		}
+		foreach ($names as $name => $entry) {
+			if ($entry['type'] === null) {
+				$names[$name]['type'] = $this->getUnmatchedGroupType($flags);
+			}
+		}
+		foreach ($composed as $i => [$captureGroup, $groupValueType, $optional]) {
+			if ($captureGroup->isNamed() && $names[$captureGroup->getName()]['type'] instanceof Type) {
 				$builder->setOffsetValueType(
 					$this->getKeyType($captureGroup->getName()),
-					$groupValueType,
-					$optional,
+					$names[$captureGroup->getName()]['type'],
+					$names[$captureGroup->getName()]['optional'],
 				);
 			}
 
@@ -308,8 +339,6 @@ final class RegexArrayShapeMatcher
 				$groupValueType,
 				$optional,
 			);
-
-			$i++;
 		}
 
 		if (count($markVerbs) > 0) {
@@ -354,10 +383,12 @@ final class RegexArrayShapeMatcher
 	 */
 	private function createSubjectValueType(Type $baseType, int $flags, bool $matchesAll, TrinaryLogic $wasMatched): Type
 	{
-		$subjectValueType = TypeCombinator::removeNull($this->getValueType($baseType, $flags, $matchesAll));
+		// the subject pair is present only where the engine matched: its
+		// offset starts at 0, never -1
+		$subjectValueType = TypeCombinator::removeNull($this->getValueType($baseType, $flags, $matchesAll, false));
 
 		if ($matchesAll) {
-			$subjectValueType = TypeCombinator::removeNull($this->getValueType(new StringType(), $flags, $matchesAll));
+			$subjectValueType = TypeCombinator::removeNull($this->getValueType(new StringType(), $flags, $matchesAll, false));
 
 			if ($this->containsPatternOrder($flags)) {
 				$accessoryTypes = [
@@ -424,7 +455,12 @@ final class RegexArrayShapeMatcher
 				);
 				$groupValueType = TypeCombinator::removeNull($groupValueType);
 			} else {
-				$groupValueType = $this->getValueType($captureGroup->getType(), $flags, $matchesAll);
+				// a group the arm holds matched - non-optional, or trailing
+				// and omitted when unmatched - never shows offset -1; a
+				// branch the arm leaves out is the unmatched group itself,
+				// and its offset is -1
+				$groupType = $captureGroup->getType();
+			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $groupType->equals($this->getUnmatchedGroupType($flags)));
 			}
 
 			if (!$isTrailingOptional && $this->containsUnmatchedAsNull($flags, $matchesAll) && !$captureGroup->isOptional()) {
@@ -450,7 +486,8 @@ final class RegexArrayShapeMatcher
 				$matchesAll,
 			);
 		} else {
-			$groupValueType = $this->getValueType($captureGroup->getType(), $flags, $matchesAll);
+			$groupType = $captureGroup->getType();
+			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $groupType->equals($this->getUnmatchedGroupType($flags)));
 		}
 
 		if ($wasMatched->yes()) {
@@ -513,12 +550,16 @@ final class RegexArrayShapeMatcher
 		return new ConstantIntegerType($key);
 	}
 
-	private function getValueType(Type $baseType, int $flags, bool $matchesAll): Type
+	private function getValueType(Type $baseType, int $flags, bool $matchesAll, bool $offsetMayBeMinusOne = true): Type
 	{
 		$valueType = $baseType;
 
-		// unmatched groups return -1 as offset
-		$offsetType = IntegerRangeType::fromInterval(-1, null);
+		// an unmatched group returns -1 as its offset; a group the arm
+		// holds matched starts at 0 or later, and a trailing group the
+		// engine omits when unmatched never shows the -1 at all
+		$offsetType = $offsetMayBeMinusOne
+			? IntegerRangeType::fromInterval(-1, null)
+			: IntegerRangeType::fromInterval(0, null);
 		if ($this->containsUnmatchedAsNull($flags, $matchesAll)) {
 			$valueType = TypeCombinator::addNull($valueType);
 		}

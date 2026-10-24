@@ -465,12 +465,17 @@ final class RegexShapeReadingTest extends TestCase
 		};
 
 		$minor = intdiv(PHP_VERSION_ID, 100) * 100;
-		$witness = PcreVersion::fromString(PcreVersion::fromRuntime()->getVersionString(), PcreVersion::SOURCE_RUNTIME);
+		$runtime = PcreVersion::fromRuntime();
+		$witness = PcreVersion::fromString($runtime->getVersionString(), PcreVersion::SOURCE_RUNTIME);
 
 		self::assertSame('10.49', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.49', PcreVersion::SOURCE_CONFIG), $helper)), 'a pin is a statement, honoured above the baseline');
 		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42', PcreVersion::SOURCE_CONFIG), $helper)), 'a pin below the baseline narrows');
 		self::assertSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion($minor), $witness, $helper)), 'the running engine speaks for its own minor');
-		self::assertNotSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion(70400), $witness, $helper)), 'a witness from another minor stays silent');
+		self::assertSame(
+			\PHPRegex\Parser\PcreTarget::bundledWith(70400)->pcreVersion,
+			$targetOf(new PHPRegexReader(new PhpVersion(70400), $witness, $helper)),
+			'a witness from another minor stays silent, and the baseline judges',
+		);
 		self::assertSame('10.49', PcreVersion::fromString('10.49-RC1')->getVersionString(), 'a release candidate reads as its release');
 	}
 
@@ -599,7 +604,8 @@ final class RegexShapeReadingTest extends TestCase
 		// the pre-check judges for the analysed PHP, not the running one: a
 		// padded \x{ 41 } compiles on the runner's 10.43+ engine but the PHP
 		// an 8.2 project runs refuses it, so the shape is null and the
-		// invalid-pattern rule speaks about the running engine alone
+		// invalid-pattern rule keeps the running engine as its second
+		// witness; the target's word comes first
 		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		$php82 = new RegexGroupParser(new PhpVersion(80200), new PHPRegexReader(new PhpVersion(80200), PcreVersion::fromString('10.40'), $helper));
 		$php84 = new RegexGroupParser(new PhpVersion(80400), new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.44'), $helper));

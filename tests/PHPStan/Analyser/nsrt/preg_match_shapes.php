@@ -115,9 +115,9 @@ function doNamedSubpattern(string $s): void {
 
 function doOffsetCapture(string $s): void {
 	if (preg_match('/(foo)(bar)(baz)/', $s, $matches, PREG_OFFSET_CAPTURE)) {
-		assertType("array{array{'foobarbaz', int<-1, max>}, array{'foo', int<-1, max>}, array{'bar', int<-1, max>}, array{'baz', int<-1, max>}}", $matches);
+		assertType("array{array{'foobarbaz', int<0, max>}, array{'foo', int<0, max>}, array{'bar', int<0, max>}, array{'baz', int<0, max>}}", $matches);
 	}
-	assertType("array{}|array{array{'foobarbaz', int<-1, max>}, array{'foo', int<-1, max>}, array{'bar', int<-1, max>}, array{'baz', int<-1, max>}}", $matches);
+	assertType("array{}|array{array{'foobarbaz', int<0, max>}, array{'foo', int<0, max>}, array{'bar', int<0, max>}, array{'baz', int<0, max>}}", $matches);
 }
 
 function doUnknownFlags(string $s, int $flags): void {
@@ -346,11 +346,11 @@ function bug11277b(string $value): void
 // https://3v4l.org/09qdT
 function bug11291(string $s): void {
 	if (preg_match('/(?|(a)|(b)(c)|(d)(e)(f))/', $s, $matches)) {
-		assertType('array{\'a\'|\'bc\'|\'def\', \'c\'|\'e\', \'f\'}|array{0: \'a\'|\'bc\'|\'def\', 1?: \'a\'|\'b\'|\'d\'}', $matches);
+		assertType('list{0: \'a\'|\'bc\'|\'def\', 1: \'a\'|\'b\'|\'d\', 2?: \'c\'|\'e\', 3?: \'f\'}', $matches);
 	} else {
 		assertType('array{}', $matches);
 	}
-	assertType('array{}|array{\'a\'|\'bc\'|\'def\', \'c\'|\'e\', \'f\'}|array{0: \'a\'|\'bc\'|\'def\', 1?: \'a\'|\'b\'|\'d\'}', $matches);
+	assertType('array{}|list{0: \'a\'|\'bc\'|\'def\', 1: \'a\'|\'b\'|\'d\', 2?: \'c\'|\'e\', 3?: \'f\'}', $matches);
 }
 
 function bug11323a(string $s): void
@@ -679,13 +679,13 @@ function (string $s): void {
 function (string $value): void
 {
 	if (preg_match('/^(x)*$/', $value, $matches, PREG_OFFSET_CAPTURE)) {
-		assertType("array{0: array{string, int<-1, max>}, 1?: array{'x', int<-1, max>}}", $matches);
+		assertType("array{0: array{string, int<0, max>}, 1?: array{'x', int<0, max>}}", $matches);
 	}
 };
 
 function (string $value): void {
 	if (preg_match('/^(?:(x)|(y))*$/', $value, $matches, PREG_OFFSET_CAPTURE)) {
-		assertType("array{0: array{string, int<-1, max>}, 1?: array{'x', int<-1, max>}}|array{array{string, int<-1, max>}, array{'', int<-1, max>}, array{'y', int<-1, max>}}", $matches);
+		assertType("array{0: array{string, int<0, max>}, 1?: array{'x', int<0, max>}}|array{array{string, int<0, max>}, array{'', int<-1, max>}, array{'y', int<0, max>}}", $matches);
 	}
 };
 
@@ -724,7 +724,7 @@ function (string $s): void {
 
 function (string $s): void {
 	if (preg_match('~a|(\d)|(\s)~', $s, $matches, PREG_OFFSET_CAPTURE) === 1) {
-		assertType("array{0: array{non-empty-string, int<-1, max>}, 1?: array{numeric-string, int<-1, max>}}|array{array{non-empty-string, int<-1, max>}, array{'', int<-1, max>}, array{non-falsy-string, int<-1, max>}}", $matches);
+		assertType("array{0: array{non-empty-string, int<0, max>}, 1?: array{numeric-string, int<0, max>}}|array{array{non-empty-string, int<0, max>}, array{'', int<-1, max>}, array{non-falsy-string, int<0, max>}}", $matches);
 	}
 };
 

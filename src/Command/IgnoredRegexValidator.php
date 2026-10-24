@@ -10,7 +10,6 @@ use PHPRegex\Parser\Node\NodeInterface;
 use PHPRegex\Parser\Node\SequenceNode;
 use PHPStan\PhpDoc\TypeStringResolver;
 use PHPStan\PhpDocParser\Parser\ParserException;
-use PHPStan\ShouldNotHappenException;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\VerbosityLevel;
@@ -93,17 +92,6 @@ final class IgnoredRegexValidator
 		}
 
 		return $types;
-	}
-
-	private function removeDelimiters(string $regex): string
-	{
-		$delimiter = substr($regex, 0, 1);
-		$endDelimiterPosition = strrpos($regex, $delimiter);
-		if ($endDelimiterPosition === false) {
-			throw new ShouldNotHappenException();
-		}
-
-		return substr($regex, 1, $endDelimiterPosition - 1);
 	}
 
 	/**
