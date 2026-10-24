@@ -12,13 +12,17 @@ final class RegexAstWalkResult
 	/**
 	 * @param array<int, RegexCapturingGroup> $capturingGroups
 	 * @param list<string> $markVerbs
+	 * @param Type|null $subjectNarrowType what the subject itself narrows to: null while
+	 *            the pattern anchors no end — a subject only ever contains the match —
+	 *            for an anchored one the accessories the match still leaves open, for a
+	 *            subject is never the match: $ admits one final newline
 	 */
 	public function __construct(
 		private int $alternationId,
-		private int $captureGroupId,
 		private array $capturingGroups,
 		private array $markVerbs,
 		private Type $subjectBaseType,
+		private ?Type $subjectNarrowType = null,
 	)
 	{
 	}
@@ -27,8 +31,6 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			-1,
-			// use different start-index for groups to make it easier to distinguish groupids from other ids
-			100,
 			[],
 			[],
 			new StringType(),
@@ -39,21 +41,10 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			$this->alternationId + 1,
-			$this->captureGroupId,
 			$this->capturingGroups,
 			$this->markVerbs,
 			$this->subjectBaseType,
-		);
-	}
-
-	public function nextCaptureGroupId(): self
-	{
-		return new self(
-			$this->alternationId,
-			$this->captureGroupId + 1,
-			$this->capturingGroups,
-			$this->markVerbs,
-			$this->subjectBaseType,
+			$this->subjectNarrowType,
 		);
 	}
 
@@ -64,10 +55,10 @@ final class RegexAstWalkResult
 
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$capturingGroups,
 			$this->markVerbs,
 			$this->subjectBaseType,
+			$this->subjectNarrowType,
 		);
 	}
 
@@ -78,7 +69,6 @@ final class RegexAstWalkResult
 
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$this->capturingGroups,
 			$verbs,
 			$this->subjectBaseType,
@@ -89,21 +79,26 @@ final class RegexAstWalkResult
 	{
 		return new self(
 			$this->alternationId,
-			$this->captureGroupId,
 			$this->capturingGroups,
 			$this->markVerbs,
 			$subjectBaseType,
 		);
 	}
 
+	public function withSubjectNarrowType(?Type $subjectNarrowType): self
+	{
+		return new self(
+			$this->alternationId,
+			$this->capturingGroups,
+			$this->markVerbs,
+			$this->subjectBaseType,
+			$subjectNarrowType,
+		);
+	}
+
 	public function getAlternationId(): int
 	{
 		return $this->alternationId;
-	}
-
-	public function getCaptureGroupId(): int
-	{
-		return $this->captureGroupId;
 	}
 
 	/**
@@ -125,6 +120,15 @@ final class RegexAstWalkResult
 	public function getSubjectBaseType(): Type
 	{
 		return $this->subjectBaseType;
+	}
+
+	/**
+	 * The subject narrowed by a match on the pattern: null while the pattern
+	 * anchors no end, for an anchored one the accessories alone.
+	 */
+	public function getSubjectNarrowType(): ?Type
+	{
+		return $this->subjectNarrowType;
 	}
 
 }

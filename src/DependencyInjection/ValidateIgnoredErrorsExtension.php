@@ -2,8 +2,6 @@
 
 namespace PHPStan\DependencyInjection;
 
-use Hoa\Compiler\Llk\Llk;
-use Hoa\File\Read;
 use Nette\DI\CompilerExtension;
 use Nette\Utils\RegexpException;
 use Nette\Utils\Strings;
@@ -14,8 +12,11 @@ use PHPStan\Command\IgnoredRegexValidator;
 use PHPStan\File\FileExcluder;
 use PHPStan\Php\ComposerPhpVersionFactory;
 use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
+use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\DirectTypeNodeResolverExtensionRegistryProvider;
+use PHPStan\Type\Regex\PHPRegexReader;
+use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\PhpDoc\TypeNodeResolver;
 use PHPStan\PhpDoc\TypeNodeResolverExtensionRegistry;
 use PHPStan\PhpDoc\TypeStringResolver;
@@ -69,7 +70,6 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 		}
 
 		/** @throws void */
-		$parser = Llk::load(new Read(__DIR__ . '/../../resources/RegexGrammar.pp'));
 		$reflectionProvider = new DummyReflectionProvider();
 		$reflectionProviderProvider = new DirectReflectionProviderProvider($reflectionProvider);
 
@@ -91,10 +91,10 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 		try {
 			$composerPhpVersionFactory = new ComposerPhpVersionFactory([]);
 			$constantResolver = new ConstantResolver($reflectionProviderProvider, [], new ConfiguredPhpVersionRangeHelper(null, $composerPhpVersionFactory), container: null);
+			$initializerExprTypeResolver = new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true);
 
 			$phpDocParserConfig = new ParserConfig([]);
 			$ignoredRegexValidator = new IgnoredRegexValidator(
-				$parser,
 				new TypeStringResolver(
 					new Lexer($phpDocParserConfig),
 					new TypeParser($phpDocParserConfig, new ConstExprParser($phpDocParserConfig)),
@@ -124,9 +124,17 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 
 						}),
 						$constantResolver,
-						new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true),
+						$initializerExprTypeResolver,
 						reportUnsafeArrayStringKeyCasting: null,
 					),
+				),
+				// ignoreErrors patterns are matched by the running PHPStan
+				// itself, so their read is judged for the running PHP and
+				// its engine
+				new PHPRegexReader(
+					new PhpVersion(PHP_VERSION_ID),
+					self::runtimePcreVersion(),
+					new RegexExpressionHelper($initializerExprTypeResolver),
 				),
 			);
 
@@ -255,6 +263,24 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 	private function createAnchorInTheMiddleError(string $regex): string
 	{
 		return sprintf("Ignored error %s has an unescaped anchor '$' in the middle. This leads to unintended behavior. Use '\\$' instead.", $regex);
+	}
+
+
+	/**
+	 * The engine the running PHP links, falling back to the one it bundles:
+	 * a PCRE_VERSION spelling nobody has seen yet must not take the boot
+	 * down, the same guard the factory keeps.
+	 */
+	private static function runtimePcreVersion(): PcreVersion
+	{
+		try {
+			return PcreVersion::fromRuntime();
+		} catch (\InvalidArgumentException) {
+			return PcreVersion::fromString(
+				\PHPRegex\Parser\PcreTarget::bundledWith(PHP_VERSION_ID)->pcreVersion,
+				PcreVersion::SOURCE_RUNTIME,
+			);
+		}
 	}
 
 }

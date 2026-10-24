@@ -14,7 +14,7 @@ class HelloWorld
 	public function sayHello(string $s): void
 	{
 		if (preg_match('{(' . Bar::VAL . ')}', $s, $m)) {
-			assertType("array{non-empty-string, '3'}", $m);
+			assertType("array{'3', '3'}", $m);
 		}
 	}
 }

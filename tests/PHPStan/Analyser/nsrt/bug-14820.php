@@ -9,46 +9,46 @@ function doFoo(string $s): void
 	// a single optional literal yields the literal or the empty string,
 	// combined with the surrounding literals
 	if (preg_match('~(ab?)~', $s, $m)) {
-		assertType("array{non-falsy-string, 'a'|'ab'}", $m);
+		assertType("array{'a'|'ab', 'a'|'ab'}", $m);
 	}
 
 	if (preg_match('~(ab?c)~', $s, $m)) {
-		assertType("array{non-falsy-string, 'abc'|'ac'}", $m);
+		assertType("array{'abc'|'ac', 'abc'|'ac'}", $m);
 	}
 
 	// optional in front
 	if (preg_match('~(a?bc)~', $s, $m)) {
-		assertType("array{non-falsy-string, 'abc'|'bc'}", $m);
+		assertType("array{'abc'|'bc', 'abc'|'bc'}", $m);
 	}
 
 	// two optionals combine into the full cross-product
 	if (preg_match('~(a?b?)~', $s, $m)) {
-		assertType("array{string, ''|'a'|'ab'|'b'}", $m);
+		assertType("array{''|'a'|'ab'|'b', ''|'a'|'ab'|'b'}", $m);
 	}
 
 	// optional over a (sub) group of literals
 	if (preg_match('~(a(bc)?d)~', $s, $m)) {
-		assertType("array{0: non-falsy-string, 1: 'abcd'|'ad', 2?: 'bc'}", $m);
+		assertType("array{0: 'abcd'|'ad', 1: 'abcd'|'ad', 2?: 'bc'}", $m);
 	}
 
 	// optional over an alternation
 	if (preg_match('~(a(b|c)?d)~', $s, $m)) {
-		assertType("array{0: non-falsy-string, 1: 'abd'|'acd'|'ad', 2?: 'b'|'c'}", $m);
+		assertType("array{0: 'abd'|'acd'|'ad', 1: 'abd'|'acd'|'ad', 2?: 'b'|'c'}", $m);
 	}
 
 	// the classic colour/color example
 	if (preg_match('~(colou?r)~', $s, $m)) {
-		assertType("array{non-falsy-string, 'color'|'colour'}", $m);
+		assertType("array{'color'|'colour', 'color'|'colour'}", $m);
 	}
 
 	// exactly-n repetition of a literal
 	if (preg_match('~(ab{2}c)~', $s, $m)) {
-		assertType("array{non-falsy-string, 'abbc'}", $m);
+		assertType("array{'abbc', 'abbc'}", $m);
 	}
 
 	// n-to-m repetition of a literal
 	if (preg_match('~(ab{1,2}c)~', $s, $m)) {
-		assertType("array{non-falsy-string, 'abbc'|'abc'}", $m);
+		assertType("array{'abbc'|'abc', 'abbc'|'abc'}", $m);
 	}
 
 	// unbounded repetition stays non-constant

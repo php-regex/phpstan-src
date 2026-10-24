@@ -5,6 +5,72 @@ Upgrading from PHPStan 1.x to 2.0
 
 PHPStan now requires PHP 7.4 or newer to run.
 
+## Regex shapes are read through the PHPRegex parser
+
+Regex functions like `preg_match()` are now typed from [PHPRegex](https://github.com/php-regex/php-regex),
+a pure-PHP PCRE2 parser that knows which PHP and PCRE2 release it judges for,
+replacing the vendored PCRE grammar (forked from Hoa's). Most patterns keep
+their shapes; the ones that change, change toward what the engine does:
+
+- `/(a)(\1)/` types the second group as `string`, not the literal `'1'` the
+  backreference spelling was read as.
+- Constructs the grammar refused — `\g{1}`, `\k<name>`, `(*PRUNE)`-family
+  verbs, `(?C)` callouts, `\Q..\E` runs, assertion conditions — produce
+  shapes instead of falling back to `array<string, string|null>`.
+- Under `/x`, whitespace and `\Q..\E` are read as the engine reads them;
+  subjects stop being typed non-falsy on whitespace the engine skips.
+- The `(?n)` option turns capturing off from where it stands; the shapes
+  no longer carry a group the engine never fills.
+- The read is judged for the analysed PHP, not the running one: a padded
+  `\x{ 41 }` escape is the letter A on engines from 10.43 and the letter
+  x then text on older ones. An engine is named with the `pcreVersion`
+  parameter or `config.platform.lib-pcre` in composer.json; the name is
+  honoured, up or down, as a statement about the analysed project, and
+  the engine PHPStan itself runs is heard only for the PHP it shares a
+  minor with.
+- `RegularExpressionPatternRule` now reports a pattern the analysed
+  engine refuses while the running one compiles it, in the parser's own
+  words, and its messages for patterns both refuse changed voice: what
+  PHPStan's own engine said ("Compilation failed: missing closing
+  parenthesis at offset 1 in pattern: ~(~") the target's word replaces
+  ("Expected ) at end of input (found eof). at offset 1"). Identifiers
+  stay `regexp.pattern`; baselines matching the old message texts need
+  re-recording.
+
+- Under `i` without `u` the engine folds ASCII letters only: a literal
+  or a class past seven bits keeps its exact values
+  (`/(£|€)/i` types its group `'£'|'€'`), and a digit class enumerates
+  (`/([2-5])/i` types `'2'|'3'|'4'|'5'`).
+- The trailing `J` modifier reads like the inline `(?J)` spelling:
+  duplicate names keep their shapes
+  (`preg_match_all('/foo(?P<t>test)|test(?P<t>foo)/J', …)` types the
+  branches, not `array<string>`).
+- With `PREG_OFFSET_CAPTURE`, a pair the arm holds matched starts at
+  `int<0, max>`; `int<-1, max>` stays where the group may sit unmatched
+  (phpstan#14959).
+- `preg_match_all()` under `PREG_PATTERN_ORDER` types the named columns
+  it can read, not `array<list<string>>`.
+
+- Captures and the whole match narrow to the constants the engine
+  enumerates: `'a'|'b'|'c'`, the digits of a class, `'£'|'€'` past seven
+  bits under `i` without `u` — where the old grammar wrote
+  `non-empty-string` and lost the shape on any verb.
+- A `(?|…)` branch reset numbers each branch from the same base, as the
+  engine does; the shapes read the number every branch captures, and
+  `bug11291` types what its `pcre.org` reference always said (the old
+  pin was falsified by its own `"bc"` run).
+- Duplicate names written by a branch reset, not only by `J`, keep the
+  union of the groups that carry the name.
+- A subject that may be a string narrows on a true match: the string
+  arm takes the accessories the match leaves open, a null the engine
+  would coerce to the empty string goes where the pattern admits it,
+  and an int stays an int (`int|non-falsy-string` after
+  `preg_match('/^(a|b|c)$/', $x)`).
+
+If an inferred `$matches` type narrows past what your code expects, the
+baseline is the place to say so — each change above is verifiable against
+the engine with a one-line `preg_match()`.
+
 ## Upgrading guide for end users
 
 The best way to get ready for upgrade to PHPStan 2.0 is to update to the **latest PHPStan 1.12 release**

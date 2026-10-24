@@ -13,7 +13,10 @@ use PHPStan\Analyser\TypeSpecifierContext;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Reflection\FunctionReflection;
 use PHPStan\TrinaryLogic;
+use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\FunctionTypeSpecifyingExtension;
+use PHPStan\Type\StringType;
+use PHPStan\Type\TypeCombinator;
 use function in_array;
 use function strtolower;
 
@@ -55,14 +58,32 @@ final class PregMatchTypeSpecifyingExtension implements FunctionTypeSpecifyingEx
 		if (
 			$subjectArg !== null
 			&& $context->true()
-			&& $scope->getType($subjectArg->value)->isString()->yes()
+			// a subject that may be a string narrows: a true match removes
+			// the null the engine would have coerced to the empty string
+			&& !$scope->getType($subjectArg->value)->isString()->no()
 			&& !$this->isSubExprOfMatchesArg($subjectArg->value, $matchesArg !== null ? $matchesArg->value : null)
 		) {
-			$subjectType = $this->regexShapeMatcher->matchSubjectExpr($patternArg->value, $scope);
-			if ($subjectType !== null) {
+			$narrowType = $this->regexShapeMatcher->matchSubjectExpr($patternArg->value, $scope);
+			if ($narrowType !== null) {
+				// the subject keeps what it is beside a string - an int that
+				// reads "5" matches as truly as the string "5" does - and a
+				// null the engine would coerce to the empty string stays
+				// only where the narrow admits the empty string
+				$subjectType = $scope->getType($subjectArg->value);
+				$besideString = TypeCombinator::remove($subjectType, new StringType());
+				// a null subject the engine coerces to the empty string can
+				// be a true match only where the narrow admits the empty
+				// string
+				if ($narrowType->isSuperTypeOf(new ConstantStringType(''))->no()) {
+					$besideString = TypeCombinator::removeNull($besideString);
+				}
+				$narrowType = TypeCombinator::intersect(
+					$subjectType,
+					TypeCombinator::union($narrowType, $besideString),
+				);
 				$subjectTypes = $this->typeSpecifier->create(
 					$subjectArg->value,
-					$subjectType,
+					$narrowType,
 					$context,
 					$scope,
 				)->setRootExpr($node);

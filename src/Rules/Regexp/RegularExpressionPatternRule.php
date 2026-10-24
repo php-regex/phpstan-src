@@ -10,6 +10,7 @@ use PHPStan\Analyser\Scope;
 use PHPStan\DependencyInjection\RegisteredRule;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\Regex\RegexExpressionHelper;
 use function in_array;
 use function sprintf;
@@ -25,6 +26,7 @@ final class RegularExpressionPatternRule implements Rule
 
 	public function __construct(
 		private RegexExpressionHelper $regexExpressionHelper,
+		private PHPRegexReader $reader,
 	)
 	{
 	}
@@ -122,6 +124,15 @@ final class RegularExpressionPatternRule implements Rule
 
 	private function validatePattern(string $pattern): ?string
 	{
+		// the pattern is judged for the analysed PHP and its engine — the
+		// project crashes on its own machine, whatever the runner takes —
+		// and the running engine stays a second witness: a construct the
+		// parser misjudges still reports
+		$refusal = $this->reader->refusalOfExpression($pattern);
+		if ($refusal !== null) {
+			return $refusal;
+		}
+
 		try {
 			Strings::match('', $pattern);
 		} catch (RegexpException $e) {

@@ -8,7 +8,7 @@ use function PHPStan\Testing\assertType;
 
 function bug12210a(string $text): void {
 	assert(preg_match('(((sum|min|max)))', $text, $match) === 1);
-	assertType("array{non-falsy-string, 'max'|'min'|'sum', 'max'|'min'|'sum'}", $match);
+	assertType("array{'max'|'min'|'sum', 'max'|'min'|'sum', 'max'|'min'|'sum'}", $match);
 }
 
 function bug12210b(string $text): void {

@@ -17,20 +17,17 @@ class HelloWorld
 			return;
 		}
 
-		assertType('list<array<string>>', $matches);
-		// could be assertType("list<array{0: string, test: 'foo'|'test', 1?: 'test', 2?: 'foo'}>", $matches);
+		assertType('non-empty-list<array{0: string, test?: \'foo\'|\'test\', 1?: \'test\', 2?: \'foo\'}>', $matches);
 		if (!preg_match_all($regex, $options[$key], $matches, PREG_PATTERN_ORDER)) {
 			return;
 		}
 
-		assertType('array<list<string>>', $matches);
-		// could be assertType("array{0: list<string>, test: list<'foo'|'test'>, 1: list<'test'|''>, 2: list<''|'foo'>}", $matches);
+		assertType('array{0: non-empty-list<string>, test: non-empty-list<\'\'|\'foo\'|\'test\'>, 1: non-empty-list<\'\'|\'test\'>, 2: non-empty-list<\'\'|\'foo\'>}', $matches);
 
 		if (!preg_match($regex, $options[$key], $matches)) {
 			return;
 		}
 
-		assertType('array<string>', $matches);
-		// could be assertType("array{0: list<string>, test: 'foo', 1: '', 2: 'foo'}|array{0: list<string>, test: 'test', 1: 'test', 2: ''}", $matches);
-	}
+		assertType('array{0: \'footest\'|\'testfoo\', test: \'foo\', 1: \'\', 2: \'foo\'}|array{0: \'footest\'|\'testfoo\', test: \'test\', 1: \'test\'}', $matches);
+		}
 }

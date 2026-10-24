@@ -18,7 +18,7 @@ class HelloWorld
 				fn ($key) => preg_match("/^somePattern[0-9]+$/", $key)
 			);
 
-			assertType('array<int<0, max>, (int|string)>', $someKeys);
+			assertType('array<int<0, max>, (int|non-falsy-string)>', $someKeys);
 
 			if (count($someKeys) > 0) {
 				return 1;
