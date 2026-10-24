@@ -22,7 +22,7 @@ class HelloWorld
 			return;
 		}
 
-		assertType('array{0: non-empty-list<string>, test: non-empty-list<\'\'|\'foo\'>, 1: non-empty-list<\'\'|\'test\'>, 2: non-empty-list<\'\'|\'foo\'>}', $matches);
+		assertType('array{0: non-empty-list<string>, test: non-empty-list<\'\'|\'foo\'|\'test\'>, 1: non-empty-list<\'\'|\'test\'>, 2: non-empty-list<\'\'|\'foo\'>}', $matches);
 
 		if (!preg_match($regex, $options[$key], $matches)) {
 			return;

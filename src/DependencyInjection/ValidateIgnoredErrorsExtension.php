@@ -10,13 +10,13 @@ use PHPStan\Analyser\ConstantResolver;
 use PHPStan\Analyser\NameScope;
 use PHPStan\Command\IgnoredRegexValidator;
 use PHPStan\File\FileExcluder;
-use PHPStan\Type\Regex\PHPRegexReader;
-use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\Php\ComposerPhpVersionFactory;
 use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\DirectTypeNodeResolverExtensionRegistryProvider;
+use PHPStan\Type\Regex\PHPRegexReader;
+use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\PhpDoc\TypeNodeResolver;
 use PHPStan\PhpDoc\TypeNodeResolverExtensionRegistry;
 use PHPStan\PhpDoc\TypeStringResolver;
@@ -133,7 +133,7 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 				// its engine
 				new PHPRegexReader(
 					new PhpVersion(PHP_VERSION_ID),
-					PcreVersion::fromRuntime(),
+					self::runtimePcreVersion(),
 					new RegexExpressionHelper($initializerExprTypeResolver),
 				),
 			);
@@ -263,6 +263,24 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 	private function createAnchorInTheMiddleError(string $regex): string
 	{
 		return sprintf("Ignored error %s has an unescaped anchor '$' in the middle. This leads to unintended behavior. Use '\\$' instead.", $regex);
+	}
+
+
+	/**
+	 * The engine the running PHP links, falling back to the one it bundles:
+	 * a PCRE_VERSION spelling nobody has seen yet must not take the boot
+	 * down, the same guard the factory keeps.
+	 */
+	private static function runtimePcreVersion(): PcreVersion
+	{
+		try {
+			return PcreVersion::fromRuntime();
+		} catch (\InvalidArgumentException) {
+			return PcreVersion::fromString(
+				\PHPRegex\Parser\PcreTarget::bundledWith(PHP_VERSION_ID)->pcreVersion,
+				PcreVersion::SOURCE_RUNTIME,
+			);
+		}
 	}
 
 }

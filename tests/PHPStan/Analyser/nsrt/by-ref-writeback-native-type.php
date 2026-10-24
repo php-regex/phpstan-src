@@ -11,8 +11,8 @@ function offsetCapture(string $s): void
 		return;
 	}
 
-	assertType("array{0: array{'a'|'ab', int<-1, max>}, 1: array{'a', int<-1, max>}, 2?: array{'b', int<-1, max>}}", $m);
-	assertNativeType("array{0: array{'a'|'ab', int<-1, max>}, 1: array{'a', int<-1, max>}, 2?: array{'b', int<-1, max>}}", $m);
+	assertType("array{0: array{'a'|'ab', int<0, max>}, 1: array{'a', int<0, max>}, 2?: array{'b', int<0, max>}}", $m);
+	assertNativeType("array{0: array{'a'|'ab', int<0, max>}, 1: array{'a', int<0, max>}, 2?: array{'b', int<0, max>}}", $m);
 }
 
 function noFlags(string $s): void

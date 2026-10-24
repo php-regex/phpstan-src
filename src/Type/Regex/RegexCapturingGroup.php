@@ -70,7 +70,7 @@ final class RegexCapturingGroup
 			$this->parent,
 			$type,
 			$this->forceNonOptional,
-			$this->forceType,
+			$type,
 			$this->forceAlternationBranchMatched,
 		);
 	}
@@ -186,6 +186,15 @@ final class RegexCapturingGroup
 	public function getName(): ?string
 	{
 		return $this->name;
+	}
+
+	/**
+	 * The type an alternation arm forces on this group: the unmatched
+	 * marker when the arm leaves its branch out, or the group's own type.
+	 */
+	public function getForceType(): ?Type
+	{
+		return $this->forceType;
 	}
 
 	public function getType(): Type

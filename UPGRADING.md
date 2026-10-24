@@ -23,9 +23,33 @@ their shapes; the ones that change, change toward what the engine does:
   no longer carry a group the engine never fills.
 - The read is judged for the analysed PHP, not the running one: a padded
   `\x{ 41 }` escape is the letter A on engines from 10.43 and the letter
-  x then text on older ones. An engine older than the one the analysed
-  PHP bundles can be named with the `pcreVersion` parameter or
-  `config.platform.lib-pcre` in composer.json; the pin only narrows.
+  x then text on older ones. An engine is named with the `pcreVersion`
+  parameter or `config.platform.lib-pcre` in composer.json; the name is
+  honoured, up or down, as a statement about the analysed project, and
+  the engine PHPStan itself runs is heard only for the PHP it shares a
+  minor with.
+- `RegularExpressionPatternRule` now reports a pattern the analysed
+  engine refuses while the running one compiles it, in the parser's own
+  words, and its messages for patterns both refuse changed voice: what
+  PHPStan's own engine said ("Compilation failed: missing closing
+  parenthesis at offset 1 in pattern: ~(~") the target's word replaces
+  ("Expected ) at end of input (found eof). at offset 1"). Identifiers
+  stay `regexp.pattern`; baselines matching the old message texts need
+  re-recording.
+
+- Under `i` without `u` the engine folds ASCII letters only: a literal
+  or a class past seven bits keeps its exact values
+  (`/(£|€)/i` types its group `'£'|'€'`), and a digit class enumerates
+  (`/([2-5])/i` types `'2'|'3'|'4'|'5'`).
+- The trailing `J` modifier reads like the inline `(?J)` spelling:
+  duplicate names keep their shapes
+  (`preg_match_all('/foo(?P<t>test)|test(?P<t>foo)/J', …)` types the
+  branches, not `array<string>`).
+- With `PREG_OFFSET_CAPTURE`, a pair the arm holds matched starts at
+  `int<0, max>`; `int<-1, max>` stays where the group may sit unmatched
+  (phpstan#14959).
+- `preg_match_all()` under `PREG_PATTERN_ORDER` types the named columns
+  it can read, not `array<list<string>>`.
 
 If an inferred `$matches` type narrows past what your code expects, the
 baseline is the place to say so — each change above is verifiable against

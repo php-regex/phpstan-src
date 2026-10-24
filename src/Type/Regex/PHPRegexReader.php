@@ -4,21 +4,22 @@ namespace PHPStan\Type\Regex;
 
 use PHPRegex\Parser\Exception\RegexException;
 use PHPRegex\Parser\Node\RegexNode;
-use PHPRegex\Parser\PcreTarget;
 use PHPRegex\Parser\RegexParser;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
+use function rtrim;
 use function sprintf;
 use function trim;
 
 /**
  * Reads a pattern body into the PHPRegex AST, judged for the analysed
- * project: the analysed PHP and its bundled engine, narrowed below it when
- * the config or composer.json names an older one — a pin never raises the
- * judged engine above what that PHP can run. A padded \x{ 41 } escape is
- * the letter A on the engines PHP 8.x ships with and the letter x then
- * text on PHP 7.4's, and the trees follow that verdict.
+ * project. A named engine — the `pcreVersion` parameter or
+ * `config.platform.lib-pcre` — is a statement about that project, honoured
+ * in both directions; the running engine speaks for the analysed PHP only
+ * when the two share a minor, and stays silent from another. A padded
+ * \x{ 41 } escape is the letter A on the engines PHP 8.x ships with and
+ * the letter x then text on PHP 7.4's, and the trees follow that verdict.
  */
 #[AutowiredService]
 final class PHPRegexReader
@@ -51,7 +52,7 @@ final class PHPRegexReader
 	/**
 	 * Reads a pattern as written — delimiters, modifiers, all — judged for
 	 * the analysed project: split where the helper splits it, refused when
-	 * the engine its target runs refuses it, and read into the parser'"'"'s
+	 * the engine its target runs refuses it, and read into the parser's
 	 * own tree otherwise. Null when the target takes none of it.
 	 */
 	public function readExpression(string $regex): ?RegexNode
@@ -130,7 +131,7 @@ final class PHPRegexReader
 	}
 
 	/**
-	 * The target engine'"'"'s refusal of a pattern, in its own words and at
+	 * The target engine's of a pattern, in its own words and at
 	 * its own offset, or null when it takes the pattern.
 	 */
 	public function refusal(string $rawRegex, string $modifiers, string $delimiter): ?string
@@ -143,7 +144,7 @@ final class PHPRegexReader
 		}
 
 		if ($result->offset !== null && $result->error !== null) {
-			return sprintf('%s at offset %d', $result->error, $result->offset);
+			return sprintf('%s at offset %d', rtrim($result->error, '.'), $result->offset);
 		}
 
 		return $result->error;
@@ -176,7 +177,6 @@ final class PHPRegexReader
 	private function targetOptions(): array
 	{
 		$phpVersionId = $this->phpVersion->getVersionId();
-		$bundled = PcreTarget::bundledWith($phpVersionId);
 
 		$options = ['php_version' => $phpVersionId];
 
@@ -184,7 +184,7 @@ final class PHPRegexReader
 		$speaksForAnalysed = $this->pcreVersion->getSource() === PcreVersion::SOURCE_RUNTIME
 			&& intdiv($phpVersionId, 100) === intdiv(\PHP_VERSION_ID, 100);
 
-		if ($isStatement || $speaksForAnalysed || !$this->pcreVersion->atLeast($bundled->pcreVersion)) {
+		if ($isStatement || $speaksForAnalysed) {
 			$options['pcre_version'] = $this->pcreVersion->getVersionString();
 		}
 

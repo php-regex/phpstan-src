@@ -23,7 +23,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("list{0: array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', int<-1, max>}, 1?: array{''|'foo', int<-1, max>}, 2?: array{''|'bar', int<-1, max>}, 3?: array{'baz', int<-1, max>}}", $matches);
+			assertType("list{0: array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', int<0, max>}, 1?: array{''|'foo', int<-1, max>}, 2?: array{''|'bar', int<-1, max>}, 3?: array{'baz', int<0, max>}}", $matches);
 			return '';
 		},
 		$s,
@@ -37,7 +37,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("array{array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz'|null, int<-1, max>}, array{'foo'|null, int<-1, max>}, array{'bar'|null, int<-1, max>}, array{'baz'|null, int<-1, max>}}", $matches);
+			assertType("array{array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz'|null, int<0, max>}, array{'foo'|null, int<0, max>}, array{'bar'|null, int<0, max>}, array{'baz'|null, int<0, max>}}", $matches);
 			return '';
 		},
 		$s,

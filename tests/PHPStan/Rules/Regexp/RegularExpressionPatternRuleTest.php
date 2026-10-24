@@ -34,7 +34,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					6,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					7,
 				],
 				[
@@ -42,7 +42,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					11,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					12,
 				],
 				[
@@ -50,7 +50,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					16,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					17,
 				],
 				[
@@ -58,7 +58,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					21,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					22,
 				],
 				[
@@ -66,7 +66,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					26,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					27,
 				],
 				[
@@ -74,7 +74,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					29,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					29,
 				],
 				[
@@ -82,7 +82,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					32,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					33,
 				],
 				[
@@ -90,7 +90,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					35,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					35,
 				],
 				[
@@ -98,7 +98,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					38,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					39,
 				],
 				[
@@ -106,7 +106,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					41,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					41,
 				],
 				[
@@ -114,7 +114,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					43,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 1',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 1',
 					43,
 				],
 				[
@@ -126,7 +126,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					58,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 7',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 7',
 					59,
 				],
 				[
@@ -138,7 +138,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 					62,
 				],
 				[
-					'Regex pattern is invalid: Expected ) at end of input (found eof). at offset 7',
+					'Regex pattern is invalid: Expected ) at end of input (found eof) at offset 7',
 					63,
 				],
 			],
@@ -168,7 +168,7 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 			__DIR__ . '/../../Analyser/nsrt/preg_match_shapes.php',
 			[
 				[
-					"Regex pattern is invalid: Unknown regex flag(s) found: \"y\", \"z\". at offset 17",
+					"Regex pattern is invalid: Unknown regex flag(s) found: \"y\", \"z\" at offset 17",
 					124,
 				],
 			],

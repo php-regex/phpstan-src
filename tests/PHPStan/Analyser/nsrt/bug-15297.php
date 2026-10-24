@@ -14,7 +14,7 @@ function doFoo(string $s): void
 	(?:-(?P<bar2>[a-z]+))?
 )$/ix";
 	if (preg_match($pattern, $s, $matches)) {
-		assertType("array{0: non-falsy-string, foo1: '', 1: '', bar1: '', 2: '', foo2: non-falsy-string, 3: non-falsy-string, bar2?: non-falsy-string, 4?: non-falsy-string}|array{0: non-falsy-string, foo1: non-falsy-string, 1: non-falsy-string, bar1?: numeric-string, 2?: numeric-string}", $matches);
+		assertType("array{0: non-falsy-string, foo1: non-falsy-string, 1: non-falsy-string, bar1?: numeric-string, 2?: numeric-string}|array{0: non-falsy-string, foo1?: '', 1: '', bar1?: '', 2: '', foo2: non-falsy-string, 3: non-falsy-string, bar2?: non-falsy-string, 4?: non-falsy-string}", $matches);
 	}
 }
 
