@@ -152,6 +152,13 @@ final class PregSplitDynamicReturnTypeExtension implements DynamicFunctionReturn
 			return new UnionType([$returnListType, new ConstantBooleanType(false)]);
 		}
 
+		// a limit or a flags value no constant names is no failed call:
+		// the engine reads the flags it knows and splits all the same, so
+		// the generic list answers, never a bare false
+		if ($limits === [] || $flags === []) {
+			return $this->genericReturnType($subjectType, $capturesOffset, $scope);
+		}
+
 		$resultTypes = [];
 		foreach ($patternConstantTypes as $patternConstantType) {
 			foreach ($subjectConstantTypes as $subjectConstantType) {
@@ -168,6 +175,54 @@ final class PregSplitDynamicReturnTypeExtension implements DynamicFunctionReturn
 		}
 		$resultTypes[] = new ConstantBooleanType(false);
 		return TypeCombinator::union(...$resultTypes);
+	}
+
+	/**
+	 * What a call with a constant pattern but an unknown limit or flags
+	 * value still says: a list of the pieces the engine may interleave,
+	 * with the offset pairs where the flags may ask for them.
+	 */
+	private function genericReturnType(Type $subjectType, ?\PhpParser\Node\Arg $capturesOffset, \PHPStan\Analyser\Scope $scope): Type
+	{
+		$returnStringType = new StringType();
+
+		$arrayTypeBuilder = ConstantArrayTypeBuilder::createEmpty();
+		$arrayTypeBuilder->setOffsetValueType(
+			new ConstantIntegerType(0),
+			$returnStringType,
+		);
+		$arrayTypeBuilder->setOffsetValueType(
+			new ConstantIntegerType(1),
+			IntegerRangeType::fromInterval(0, null),
+		);
+		$capturedArrayType = $arrayTypeBuilder->getArray();
+
+		$returnInternalValueType = $returnStringType;
+		if ($capturesOffset !== null) {
+			$flagState = $this->bitwiseFlagAnalyser->bitwiseOrContainsConstant($capturesOffset->value, $scope, 'PREG_SPLIT_OFFSET_CAPTURE');
+			if ($flagState->yes()) {
+				$capturedArrayListType = new IntersectionType([
+					new ArrayType(IntegerRangeType::createAllGreaterThanOrEqualTo(0), $capturedArrayType),
+					new AccessoryArrayListType(),
+				]);
+
+				if ($subjectType->isNonEmptyString()->yes()) {
+					$capturedArrayListType = TypeCombinator::intersect($capturedArrayListType, new NonEmptyArrayType());
+				}
+
+				return new UnionType([$capturedArrayListType, new ConstantBooleanType(false)]);
+			}
+			if ($flagState->maybe()) {
+				$returnInternalValueType = new UnionType([new StringType(), $capturedArrayType]);
+			}
+		}
+
+		$returnListType = new IntersectionType([new ArrayType(IntegerRangeType::createAllGreaterThanOrEqualTo(0), $returnInternalValueType), new AccessoryArrayListType()]);
+		if ($subjectType->isNonEmptyString()->yes()) {
+			$returnListType = new IntersectionType([new NonEmptyArrayType(), ...$returnListType->getTypes()]);
+		}
+
+		return new UnionType([$returnListType, new ConstantBooleanType(false)]);
 	}
 
 	/**
