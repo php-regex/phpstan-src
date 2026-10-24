@@ -29,6 +29,5 @@ class HelloWorld
 		}
 
 		assertType('array{0: \'footest\'|\'testfoo\', test: \'foo\', 1: \'\', 2: \'foo\'}|array{0: \'footest\'|\'testfoo\', test: \'test\', 1: \'test\'}', $matches);
-		// could be assertType("array{0: list<string>, test: 'foo', 1: '', 2: 'foo'}|array{0: list<string>, test: 'test', 1: 'test', 2: ''}", $matches);
-	}
+		}
 }
