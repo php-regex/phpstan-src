@@ -122,11 +122,14 @@ final class RegexGroupParser
 				? new ConstantStringType('')
 				: $this->stringTypeOf($groupShape->values, $groupShape->digitsOnly, $groupShape->nonFalsy, $groupShape->minLength);
 
+			// the engine may leave a group unset for reasons the topology
+			// cannot see - a (*ACCEPT) cut, a condition that never ran -
+			// so the shape's own word decides optional presence too
 			$group = new RegexCapturingGroup(
 				$groupShape->number,
 				$groupShape->name,
 				$entry['alternation'] !== null ? $alternations[spl_object_id($entry['alternation'])] ?? null : null,
-				$entry['inOptional'],
+				$entry['inOptional'] || ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset()),
 				$entry['parent'] !== null ? ($objects[$entry['parent']] ?? null) : null,
 				$type,
 			);

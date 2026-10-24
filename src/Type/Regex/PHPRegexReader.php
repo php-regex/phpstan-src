@@ -2,7 +2,9 @@
 
 namespace PHPStan\Type\Regex;
 
+use PHPRegex\Parser\Exception\ExceptionInterface;
 use PHPRegex\Parser\Exception\RegexException;
+use PHPRegex\Parser\Validation\ValidationErrorCategory;
 use PHPRegex\Parser\Node\RegexNode;
 use PHPRegex\Parser\RegexParser;
 use PHPStan\DependencyInjection\AutowiredService;
@@ -70,7 +72,9 @@ final class PHPRegexReader
 
 		try {
 			return $this->read($rawRegex, $modifiers, $delimiter);
-		} catch (RegexException) {
+		} catch (ExceptionInterface) {
+			// a limit the library hit or a failure inside it is no verdict
+			// on the pattern: no shape, never a crash
 			return null;
 		}
 	}
@@ -138,8 +142,20 @@ final class PHPRegexReader
 	{
 		$this->parser ??= RegexParser::create($this->targetOptions());
 
-		$result = $this->parser->validate($this->delimited($rawRegex, $modifiers, $delimiter));
+		try {
+			$result = $this->parser->validate($this->delimited($rawRegex, $modifiers, $delimiter));
+		} catch (ExceptionInterface) {
+			// the library failed, not the pattern: no verdict
+			return null;
+		}
+
 		if ($result->isValid) {
+			return null;
+		}
+
+		// a limit of the library is not a refusal of the pattern: the
+		// engine may well take what the library stopped reading
+		if ($result->category === ValidationErrorCategory::Limit()) {
 			return null;
 		}
 

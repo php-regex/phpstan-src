@@ -124,13 +124,13 @@ function (string $size): void {
 
 function (string $size): void {
 	if (preg_match_all('/ab(?P<num>\d+)(?P<suffix>ab)?/', $size, $matches, PREG_UNMATCHED_AS_NULL|PREG_SET_ORDER|PREG_OFFSET_CAPTURE)) {
-		assertType("non-empty-list<array{0: array{string|null, int<0, max>}, num: array{numeric-string|null, int<0, max>}, 1: array{numeric-string|null, int<0, max>}, suffix: array{'ab'|null, int<0, max>}, 2: array{'ab'|null, int<0, max>}}>", $matches);
+		assertType("non-empty-list<array{0: array{string|null, int<0, max>}, num: array{numeric-string|null, int<0, max>}, 1: array{numeric-string|null, int<0, max>}, suffix: array{'ab'|null, int<-1, max>}, 2: array{'ab'|null, int<-1, max>}}>", $matches);
 	}
 };
 
 function (string $size): void {
 	if (preg_match_all('/ab(?P<num>\d+)(?P<suffix>ab)?/', $size, $matches, PREG_UNMATCHED_AS_NULL|PREG_PATTERN_ORDER|PREG_OFFSET_CAPTURE)) {
-		assertType("array{0: non-empty-list<array{string|null, int<0, max>}>, num: non-empty-list<array{numeric-string|null, int<0, max>}>, 1: non-empty-list<array{numeric-string|null, int<0, max>}>, suffix: non-empty-list<array{'ab'|null, int<0, max>}>, 2: non-empty-list<array{'ab'|null, int<0, max>}>}", $matches);
+		assertType("array{0: non-empty-list<array{string|null, int<0, max>}>, num: non-empty-list<array{numeric-string|null, int<0, max>}>, 1: non-empty-list<array{numeric-string|null, int<0, max>}>, suffix: non-empty-list<array{'ab'|null, int<-1, max>}>, 2: non-empty-list<array{'ab'|null, int<-1, max>}>}", $matches);
 	}
 };
 
@@ -171,7 +171,7 @@ class Bug11457
 
 	function doFoobarNull(string $s): void {
 		if (preg_match_all('/(foo)?(bar)?(baz)?/', $s, $matches, PREG_OFFSET_CAPTURE|PREG_UNMATCHED_AS_NULL)) {
-			assertType("array{non-empty-list<array{string|null, int<0, max>}>, non-empty-list<array{'foo'|null, int<0, max>}>, non-empty-list<array{'bar'|null, int<0, max>}>, non-empty-list<array{'baz'|null, int<0, max>}>}", $matches);
+			assertType("array{non-empty-list<array{string|null, int<0, max>}>, non-empty-list<array{'foo'|null, int<-1, max>}>, non-empty-list<array{'bar'|null, int<-1, max>}>, non-empty-list<array{'baz'|null, int<-1, max>}>}", $matches);
 		}
 	}
 }

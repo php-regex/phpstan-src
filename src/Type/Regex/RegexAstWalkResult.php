@@ -72,6 +72,7 @@ final class RegexAstWalkResult
 			$this->capturingGroups,
 			$verbs,
 			$this->subjectBaseType,
+			$this->subjectNarrowType,
 		);
 	}
 
@@ -82,6 +83,7 @@ final class RegexAstWalkResult
 			$this->capturingGroups,
 			$this->markVerbs,
 			$subjectBaseType,
+			$this->subjectNarrowType,
 		);
 	}
 

@@ -71,9 +71,14 @@ their shapes; the ones that change, change toward what the engine does:
 
 If an inferred `$matches` type narrows past what your code expects, the
 - `preg_split()` with a limit or a flags value no constant names keeps
-  the generic list type (`non-empty-list<string>|false`, offset pairs
-  where the flags may ask for them) instead of collapsing to a bare
-  `false`.
+  the generic list type instead of collapsing to a bare `false`.
+- A group the engine may leave unset for reasons the topology cannot
+  see — a `(*ACCEPT)` cut, a condition that never ran — reads optional,
+  its value admitting `''` or `null`; and under
+  `PREG_UNMATCHED_AS_NULL | PREG_OFFSET_CAPTURE` an unmatched group's
+  offset keeps `-1`.
+
+If an inferred `$matches` type narrows past what your code expects, the
 baseline is the place to say so — each change above is verifiable against
 the engine with a one-line `preg_match()`.
 

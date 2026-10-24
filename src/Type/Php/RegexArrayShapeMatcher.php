@@ -460,7 +460,12 @@ final class RegexArrayShapeMatcher
 				// branch the arm leaves out is the unmatched group itself,
 				// and its offset is -1
 				$groupType = $captureGroup->getType();
-			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $groupType->equals($this->getUnmatchedGroupType($flags)));
+			// with PREG_UNMATCHED_AS_NULL even a trailing unmatched group
+			// sits in the array as [null, -1]; without it the trailing one
+			// is omitted, and a present pair means matched
+			$unmatchedPossible = $groupType->isSuperTypeOf($this->getUnmatchedGroupType($flags))->yes()
+				|| ($this->containsUnmatchedAsNull($flags, $matchesAll) && $captureGroup->isOptional());
+			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $unmatchedPossible);
 			}
 
 			if (!$isTrailingOptional && $this->containsUnmatchedAsNull($flags, $matchesAll) && !$captureGroup->isOptional()) {
@@ -487,7 +492,12 @@ final class RegexArrayShapeMatcher
 			);
 		} else {
 			$groupType = $captureGroup->getType();
-			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $groupType->equals($this->getUnmatchedGroupType($flags)));
+			// with PREG_UNMATCHED_AS_NULL even a trailing unmatched group
+			// sits in the array as [null, -1]; without it the trailing one
+			// is omitted, and a present pair means matched
+			$unmatchedPossible = $groupType->isSuperTypeOf($this->getUnmatchedGroupType($flags))->yes()
+				|| ($this->containsUnmatchedAsNull($flags, $matchesAll) && $captureGroup->isOptional());
+			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $unmatchedPossible);
 		}
 
 		if ($wasMatched->yes()) {
