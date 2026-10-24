@@ -4,9 +4,9 @@ namespace PHPStan\Type\Regex;
 
 use PHPRegex\Parser\Exception\ExceptionInterface;
 use PHPRegex\Parser\Exception\RegexException;
-use PHPRegex\Parser\Validation\ValidationErrorCategory;
 use PHPRegex\Parser\Node\RegexNode;
 use PHPRegex\Parser\RegexParser;
+use PHPRegex\Parser\Validation\ValidationErrorCategory;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
