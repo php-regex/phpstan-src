@@ -10,9 +10,12 @@ use PHPRegex\Parser\Validation\ValidationErrorCategory;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
+use function in_array;
+use function intdiv;
 use function rtrim;
 use function sprintf;
 use function trim;
+use const PHP_VERSION_ID;
 
 /**
  * Reads a pattern body into the PHPRegex AST, judged for the analysed
@@ -32,7 +35,7 @@ final class PHPRegexReader
 	public function __construct(
 		private PhpVersion $phpVersion,
 		private PcreVersion $pcreVersion,
-		private RegexExpressionHelper $regexExpressionHelper,
+		private RegexExpressionHelper $regexExpressionHelper
 	)
 	{
 	}
@@ -196,9 +199,9 @@ final class PHPRegexReader
 
 		$options = ['php_version' => $phpVersionId];
 
-		$isStatement = \in_array($this->pcreVersion->getSource(), [PcreVersion::SOURCE_CONFIG, PcreVersion::SOURCE_COMPOSER_PLATFORM_PCRE], true);
+		$isStatement = in_array($this->pcreVersion->getSource(), [PcreVersion::SOURCE_CONFIG, PcreVersion::SOURCE_COMPOSER_PLATFORM_PCRE], true);
 		$speaksForAnalysed = $this->pcreVersion->getSource() === PcreVersion::SOURCE_RUNTIME
-			&& intdiv($phpVersionId, 100) === intdiv(\PHP_VERSION_ID, 100);
+			&& intdiv($phpVersionId, 100) === intdiv(PHP_VERSION_ID, 100);
 
 		if ($isStatement || $speaksForAnalysed) {
 			$options['pcre_version'] = $this->pcreVersion->getVersionString();

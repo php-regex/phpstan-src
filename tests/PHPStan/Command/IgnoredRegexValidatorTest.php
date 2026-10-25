@@ -9,6 +9,7 @@ use PHPStan\Testing\PHPStanTestCase;
 use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPUnit\Framework\Attributes\DataProvider;
+use const PHP_VERSION_ID;
 
 class IgnoredRegexValidatorTest extends PHPStanTestCase
 {
@@ -162,7 +163,7 @@ class IgnoredRegexValidatorTest extends PHPStanTestCase
 		string $regex,
 		array $expectedTypes,
 		bool $expectedHasAnchors,
-		bool $expectAllErrorsIgnored,
+		bool $expectAllErrorsIgnored
 	): void
 	{
 		$validator = new IgnoredRegexValidator(

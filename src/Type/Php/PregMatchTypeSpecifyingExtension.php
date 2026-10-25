@@ -27,7 +27,7 @@ final class PregMatchTypeSpecifyingExtension implements FunctionTypeSpecifyingEx
 	private TypeSpecifier $typeSpecifier;
 
 	public function __construct(
-		private RegexArrayShapeMatcher $regexShapeMatcher,
+		private RegexArrayShapeMatcher $regexShapeMatcher
 	)
 	{
 	}

@@ -26,7 +26,7 @@ final class RegularExpressionPatternRule implements Rule
 
 	public function __construct(
 		private RegexExpressionHelper $regexExpressionHelper,
-		private PHPRegexReader $reader,
+		private PHPRegexReader $reader
 	)
 	{
 	}

@@ -47,7 +47,7 @@ final class RegexArrayShapeMatcher
 	public function __construct(
 		private RegexGroupParser $regexGroupParser,
 		private RegexExpressionHelper $regexExpressionHelper,
-		private PhpVersion $phpVersion,
+		private PhpVersion $phpVersion
 	)
 	{
 	}
@@ -272,7 +272,7 @@ final class RegexArrayShapeMatcher
 		int $trailingOptionals,
 		int $flags,
 		array $markVerbs,
-		bool $matchesAll,
+		bool $matchesAll
 	): Type
 	{
 		$forceList = count($markVerbs) === 0;
@@ -320,17 +320,19 @@ final class RegexArrayShapeMatcher
 
 			$i++;
 		}
+		$resolvedNames = [];
 		foreach ($names as $name => $entry) {
-			if ($entry['type'] === null) {
-				$names[$name]['type'] = $this->getUnmatchedGroupType($flags);
-			}
+			$resolvedNames[$name] = [
+				'type' => $entry['type'] ?? $this->getUnmatchedGroupType($flags),
+				'optional' => $entry['optional'],
+			];
 		}
 		foreach ($composed as $i => [$captureGroup, $groupValueType, $optional]) {
-			if ($captureGroup->isNamed() && $names[$captureGroup->getName()]['type'] !== null) {
+			if ($captureGroup->isNamed()) {
 				$builder->setOffsetValueType(
 					$this->getKeyType($captureGroup->getName()),
-					$names[$captureGroup->getName()]['type'],
-					$names[$captureGroup->getName()]['optional'],
+					$resolvedNames[$captureGroup->getName()]['type'],
+					$resolvedNames[$captureGroup->getName()]['optional'],
 				);
 			}
 
@@ -460,12 +462,12 @@ final class RegexArrayShapeMatcher
 				// branch the arm leaves out is the unmatched group itself,
 				// and its offset is -1
 				$groupType = $captureGroup->getType();
-			// with PREG_UNMATCHED_AS_NULL even a trailing unmatched group
-			// sits in the array as [null, -1]; without it the trailing one
-			// is omitted, and a present pair means matched
-			$unmatchedPossible = $groupType->isSuperTypeOf($this->getUnmatchedGroupType($flags))->yes()
+				// with PREG_UNMATCHED_AS_NULL even a trailing unmatched group
+				// sits in the array as [null, -1]; without it the trailing one
+				// is omitted, and a present pair means matched
+				$unmatchedPossible = $groupType->isSuperTypeOf($this->getUnmatchedGroupType($flags))->yes()
 				|| ($this->containsUnmatchedAsNull($flags, $matchesAll) && $captureGroup->isOptional());
-			$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $unmatchedPossible);
+				$groupValueType = $this->getValueType($groupType, $flags, $matchesAll, $unmatchedPossible);
 			}
 
 			if (!$isTrailingOptional && $this->containsUnmatchedAsNull($flags, $matchesAll) && !$captureGroup->isOptional()) {

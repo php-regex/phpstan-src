@@ -8,10 +8,16 @@ use PHPStan\Type\VerbosityLevel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use ReflectionProperty;
+use function array_keys;
 use function ctype_digit;
+use function is_int;
 use function json_encode;
 use function preg_match;
 use function str_contains;
+use const PHP_VERSION_ID;
+use const PREG_UNMATCHED_AS_NULL;
 
 /**
  * The word of the running engine is the oracle: every pattern the reading
@@ -44,15 +50,15 @@ final class PHPRegexBackendParityTest extends TestCase
 
 	#[Test]
 	#[DataProvider('providePatterns')]
-	public function test_the_engine_writes_what_the_shape_reads(string $pattern, string $subject): void
+	public function testTheEngineWritesWhatTheShapeReads(string $pattern, string $subject): void
 	{
 		// PREG_UNMATCHED_AS_NULL keeps every numbered group in $matches —
 		// the engine omits the trailing ones it never filled, and the count
 		// would lie
-		$matched = preg_match($pattern, $subject, $matches, \PREG_UNMATCHED_AS_NULL);
+		$matched = preg_match($pattern, $subject, $matches, PREG_UNMATCHED_AS_NULL);
 		self::assertSame(1, $matched, $pattern . ' must match ' . $subject);
 
-		$helper = (new \ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 		$parser = new RegexGroupParser(
 			new PhpVersion(PHP_VERSION_ID),
 			new PHPRegexReader(new PhpVersion(PHP_VERSION_ID), PcreVersion::fromRuntime(), $helper),
@@ -62,10 +68,12 @@ final class PHPRegexBackendParityTest extends TestCase
 		self::assertNotNull($result, $pattern . ' must read whole');
 
 		$engineGroups = 0;
-		foreach ($matches as $key => $value) {
-			if (\is_int($key) && $key > $engineGroups) {
-				$engineGroups = $key;
+		foreach (array_keys($matches) as $key) {
+			if (!is_int($key) || $key <= $engineGroups) {
+				continue;
 			}
+
+			$engineGroups = $key;
 		}
 
 		$shapeGroups = $result->getCapturingGroups();
@@ -101,7 +109,7 @@ final class PHPRegexBackendParityTest extends TestCase
 	}
 
 	#[Test]
-	public function test_a_conditional_fills_only_one_branch(): void
+	public function testAConditionalFillsOnlyOneBranch(): void
 	{
 		// preg_match('/(a)(?(1)b|(c))/', 'ab', $m) === ['ab', 'a']: the else
 		// group is numbered, optional, and never set beside a set condition
@@ -119,7 +127,7 @@ final class PHPRegexBackendParityTest extends TestCase
 	}
 
 	#[Test]
-	public function test_a_defined_group_stays_empty(): void
+	public function testADefinedGroupStaysEmpty(): void
 	{
 		// preg_match('/(?(DEFINE)(?<d>abc))(?<r>x)/', 'x', $m): d and 1 stay
 		// at the empty string, whatever the block spells
@@ -137,7 +145,7 @@ final class PHPRegexBackendParityTest extends TestCase
 	}
 
 	#[Test]
-	public function test_digit_groups_read_their_lengths(): void
+	public function testDigitGroupsReadTheirLengths(): void
 	{
 		self::assertSame(1, preg_match('/(?<year>\d{4})-(?<month>\d{2})/', '2026-10', $m));
 		self::assertSame('2026', $m['year']);
@@ -156,7 +164,7 @@ final class PHPRegexBackendParityTest extends TestCase
 
 	private function createParser(): RegexGroupParser
 	{
-		$helper = (new \ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
+		$helper = (new ReflectionClass(RegexExpressionHelper::class))->newInstanceWithoutConstructor();
 
 		return new RegexGroupParser(
 			new PhpVersion(PHP_VERSION_ID),
@@ -166,7 +174,7 @@ final class PHPRegexBackendParityTest extends TestCase
 
 	private function resetParsedAstCache(): void
 	{
-		$property = new \ReflectionProperty(RegexGroupParser::class, 'parsedShapes');
+		$property = new ReflectionProperty(RegexGroupParser::class, 'parsedShapes');
 		$property->setAccessible(true);
 		$property->setValue(null, []);
 	}

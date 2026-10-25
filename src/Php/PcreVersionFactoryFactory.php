@@ -7,7 +7,6 @@ use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Internal\ComposerHelper;
 use function count;
 use function end;
-use function is_array;
 use function is_string;
 
 #[AutowiredService]
@@ -15,14 +14,13 @@ final class PcreVersionFactoryFactory
 {
 
 	/**
-	 * @param string|null $pcreVersion
 	 * @param string[] $composerAutoloaderProjectPaths
 	 */
 	public function __construct(
 		#[AutowiredParameter]
 		private ?string $pcreVersion,
 		#[AutowiredParameter]
-		private array $composerAutoloaderProjectPaths,
+		private array $composerAutoloaderProjectPaths
 	)
 	{
 	}

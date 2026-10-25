@@ -1,7 +1,5 @@
-# The regex pipeline reads through the PHPRegex parser
-
-The change log of the pull request that replaces the vendored Hoa PCRE
-grammar; the sections below are the standing upgrade guides.
+Upgrading from PHPStan 1.x to 2.0
+=================================
 
 ## PHP version requirements
 

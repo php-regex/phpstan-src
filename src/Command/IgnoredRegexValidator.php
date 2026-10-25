@@ -3,18 +3,16 @@
 namespace PHPStan\Command;
 
 use Nette\Utils\Strings;
-use PHPRegex\Parser\Exception\RegexException;
+use PHPRegex\Parser\Exception\ExceptionInterface;
 use PHPRegex\Parser\Node\AlternationNode;
 use PHPRegex\Parser\Node\AnchorNode;
 use PHPRegex\Parser\Node\NodeInterface;
 use PHPRegex\Parser\Node\SequenceNode;
 use PHPStan\PhpDoc\TypeStringResolver;
 use PHPStan\PhpDocParser\Parser\ParserException;
-use PHPStan\Type\ObjectType;
 use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\VerbosityLevel;
 use function count;
-use function strrpos;
 use function substr;
 
 final class IgnoredRegexValidator
@@ -22,7 +20,7 @@ final class IgnoredRegexValidator
 
 	public function __construct(
 		private TypeStringResolver $typeStringResolver,
-		private PHPRegexReader $reader,
+		private PHPRegexReader $reader
 	)
 	{
 	}
@@ -33,7 +31,7 @@ final class IgnoredRegexValidator
 
 		try {
 			$root = $this->reader->read($regex, $modifiers, $delimiter);
-		} catch (\PHPRegex\Parser\Exception\ExceptionInterface) {
+		} catch (ExceptionInterface) {
 			return new IgnoredRegexValidatorResult(ignoredTypes: [], anchorsInTheMiddle: false, allErrorsIgnored: false);
 		}
 

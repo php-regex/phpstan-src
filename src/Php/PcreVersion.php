@@ -2,11 +2,12 @@
 
 namespace PHPStan\Php;
 
+use InvalidArgumentException;
 use PHPStan\DependencyInjection\AutowiredService;
 use function explode;
+use function intdiv;
 use function preg_match;
 use function sprintf;
-
 use const PCRE_VERSION;
 
 /**
@@ -47,7 +48,7 @@ final class PcreVersion
 		// A release candidate carries its date after a dash - "10.49-RC1
 		// 2026-08-14" - and reads as the release it carries the features of
 		if (preg_match('/^(\d{2})\.(\d{2})(?:[^\d].*)?$/', $version, $matches) !== 1) {
-			throw new \InvalidArgumentException(sprintf(
+			throw new InvalidArgumentException(sprintf(
 				'"%s" is not a PCRE2 release. Expected a version like "10.42".',
 				$version,
 			));

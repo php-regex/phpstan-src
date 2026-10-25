@@ -2,6 +2,17 @@
 
 namespace PHPStan\Type\Regex;
 
+use InvalidArgumentException;
+use PHPRegex\Parser\Exception\RegexException;
+use PHPRegex\Parser\Node\AlternationNode;
+use PHPRegex\Parser\Node\GroupNode;
+use PHPRegex\Parser\Node\GroupType;
+use PHPRegex\Parser\Node\LiteralNode;
+use PHPRegex\Parser\Node\NodeInterface;
+use PHPRegex\Parser\Node\QuantifierBounds;
+use PHPRegex\Parser\Node\QuantifierNode;
+use PHPRegex\Parser\PcreTarget;
+use PHPRegex\Parser\RegexParser;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PcreVersionFactory;
 use PHPStan\Php\PhpVersion;
@@ -10,9 +21,18 @@ use PHPStan\Type\VerbosityLevel;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
+use function array_values;
+use function implode;
+use function intdiv;
+use function is_bool;
+use function is_int;
+use function is_string;
 use function json_encode;
 use function mb_internal_encoding;
+use function preg_match;
+use function property_exists;
 use function sprintf;
+use const PHP_VERSION_ID;
 
 /**
  * Pins the walk semantics of RegexGroupParser now that the PHPRegex
@@ -165,9 +185,11 @@ final class RegexShapeReadingTest extends TestCase
 		foreach ($this->oldGrammarReadableBodies() as $body) {
 			$this->resetParsedAstCache();
 			$result = $parser->parseGroups('/' . $body . '/');
-			if ($result === null) {
-				$missing[] = $body;
+			if ($result !== null) {
+				continue;
 			}
+
+			$missing[] = $body;
 		}
 
 		self::assertSame([], $missing, 'Patterns the old grammar read that the parser now refuses: ' . implode(', ', $missing));
@@ -221,9 +243,11 @@ final class RegexShapeReadingTest extends TestCase
 
 		foreach ($this->hoaBlindBodies() as $body) {
 			$result = $parser->parseGroups('/' . $body . '/');
-			if ($result === null) {
-				$missing[] = $body;
+			if ($result !== null) {
+				continue;
 			}
+
+			$missing[] = $body;
 		}
 
 		self::assertSame([], $missing, 'Patterns the PHPRegex backend also refused: ' . implode(', ', $missing));
@@ -265,7 +289,7 @@ final class RegexShapeReadingTest extends TestCase
 	}
 
 	/**
-	 * @throws \PHPRegex\Parser\Exception\RegexException
+	 * @throws RegexException
 	 */
 	public function testTheReaderHandsBackTheParserOwnTree(): void
 	{
@@ -277,18 +301,18 @@ final class RegexShapeReadingTest extends TestCase
 		$tree = $reader->read('(a)', '', '/');
 		self::assertSame('/', $tree->delimiter);
 		$body = $tree->pattern;
-		self::assertInstanceOf(\PHPRegex\Parser\Node\GroupNode::class, $body);
-		self::assertSame(\PHPRegex\Parser\Node\GroupType::Capturing(), $body->type);
-		self::assertInstanceOf(\PHPRegex\Parser\Node\LiteralNode::class, $body->child);
+		self::assertInstanceOf(GroupNode::class, $body);
+		self::assertSame(GroupType::Capturing(), $body->type);
+		self::assertInstanceOf(LiteralNode::class, $body->child);
 		self::assertSame('a', $body->child->value);
 
 		$tree = $reader->read('a|b', '', '/');
-		self::assertInstanceOf(\PHPRegex\Parser\Node\AlternationNode::class, $tree->pattern);
+		self::assertInstanceOf(AlternationNode::class, $tree->pattern);
 		self::assertCount(2, $tree->pattern->alternatives);
 
 		$tree = $reader->read('a{2,4}', '', '/');
-		self::assertInstanceOf(\PHPRegex\Parser\Node\QuantifierNode::class, $tree->pattern);
-		$bounds = \PHPRegex\Parser\Node\QuantifierBounds::parse($tree->pattern->quantifier);
+		self::assertInstanceOf(QuantifierNode::class, $tree->pattern);
+		$bounds = QuantifierBounds::parse($tree->pattern->quantifier);
 		self::assertNotNull($bounds);
 		self::assertSame(2, $bounds->min);
 		self::assertSame(4, $bounds->max);
@@ -320,7 +344,7 @@ final class RegexShapeReadingTest extends TestCase
 	}
 
 	/**
-	 * @throws \PHPRegex\Parser\Exception\RegexException
+	 * @throws RegexException
 	 */
 	public function testTheAnalysedPhpVersionShapesTheEscape(): void
 	{
@@ -361,7 +385,7 @@ final class RegexShapeReadingTest extends TestCase
 		$tree74 = $reader74->read('a\x{ 41 }', '', '/')->pattern;
 		$tree84 = $reader84->read('a\x{ 41 }', '', '/')->pattern;
 
-		$fingerprint = static function (\PHPRegex\Parser\Node\NodeInterface $n) use (&$fingerprint): string {
+		$fingerprint = static function (NodeInterface $n) use (&$fingerprint): string {
 			$children = '';
 			foreach ($n->getChildren() as $child) {
 				$children .= $fingerprint($child);
@@ -427,22 +451,25 @@ final class RegexShapeReadingTest extends TestCase
 		try {
 			PcreVersion::fromString('banana');
 			self::fail('an engine release must be spelled like one');
-		} catch (\InvalidArgumentException) {
+		} catch (InvalidArgumentException) {
+			// the spelling is the test: the release is refused
 		}
 		try {
 			PcreVersion::fromString('11.5');
 			self::fail('a minor is two digits, as PCRE2 writes it');
-		} catch (\InvalidArgumentException) {
+		} catch (InvalidArgumentException) {
+			// the spelling is the test: the release is refused
 		}
 		try {
 			PcreVersion::fromString('9.42');
 			self::fail('a major is two digits, as PCRE2 writes it since the 10 series');
-		} catch (\InvalidArgumentException) {
+		} catch (InvalidArgumentException) {
+			// the spelling is the test: the release is refused
 		}
 	}
 
 	/**
-	 * @throws \PHPRegex\Parser\Exception\RegexException
+	 * @throws RegexException
 	 */
 	public function testTheJudgedEngineFollowsThePinThenTheWitness(): void
 	{
@@ -458,7 +485,7 @@ final class RegexShapeReadingTest extends TestCase
 			$property = new ReflectionProperty(PHPRegexReader::class, 'parser');
 			$property->setAccessible(true);
 
-			/** @var \PHPRegex\Parser\RegexParser $parser */
+			/** @var RegexParser $parser */
 			$parser = $property->getValue($reader);
 
 			return $parser->target()->pcreVersion;
@@ -472,7 +499,7 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertSame('10.42', $targetOf(new PHPRegexReader(new PhpVersion(80400), PcreVersion::fromString('10.42', PcreVersion::SOURCE_CONFIG), $helper)), 'a pin below the baseline narrows');
 		self::assertSame($witness->getVersionString(), $targetOf(new PHPRegexReader(new PhpVersion($minor), $witness, $helper)), 'the running engine speaks for its own minor');
 		self::assertSame(
-			\PHPRegex\Parser\PcreTarget::bundledWith(70400)->pcreVersion,
+			PcreTarget::bundledWith(70400)->pcreVersion,
 			$targetOf(new PHPRegexReader(new PhpVersion(70400), $witness, $helper)),
 			'a witness from another minor stays silent, and the baseline judges',
 		);

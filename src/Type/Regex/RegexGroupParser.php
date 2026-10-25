@@ -27,6 +27,7 @@ use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\UnionType;
 use function array_key_exists;
 use function count;
+use function max;
 use function spl_object_id;
 
 /**
@@ -45,7 +46,7 @@ final class RegexGroupParser
 
 	public function __construct(
 		private PhpVersion $phpVersion,
-		private PHPRegexReader $reader,
+		private PHPRegexReader $reader
 	)
 	{
 	}
@@ -121,7 +122,7 @@ final class RegexGroupParser
 
 			// a non-trailing group the engine may leave unset keeps its
 			// key: the value widens to the empty match, the key stays
-			if ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset() && $groupShape->number !== \count($shape->groups)) {
+			if ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset() && $groupShape->number !== count($shape->groups)) {
 				$type = TypeCombinator::union($type, new ConstantStringType(''));
 			}
 
@@ -133,7 +134,7 @@ final class RegexGroupParser
 				$groupShape->number,
 				$groupShape->name,
 				$entry['alternation'] !== null ? $alternations[spl_object_id($entry['alternation'])] ?? null : null,
-				$entry['inOptional'] || ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset() && $groupShape->number === \count($shape->groups)),
+				$entry['inOptional'] || ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset() && $groupShape->number === count($shape->groups)),
 				$entry['parent'] !== null ? ($objects[$entry['parent']] ?? null) : null,
 				$type,
 			);
@@ -144,13 +145,17 @@ final class RegexGroupParser
 
 			$walkResult = $walkResult->addCapturingGroup($group);
 
-			if ($entry['alternation'] !== null) {
-				$alternationObject = $alternations[spl_object_id($entry['alternation'])] ?? null;
-				if ($alternationObject !== null) {
-					foreach ($entry['branches'] as $branch) {
-						$alternationObject->pushGroup($branch, $group);
-					}
-				}
+			if ($entry['alternation'] === null) {
+				continue;
+			}
+
+			$alternationObject = $alternations[spl_object_id($entry['alternation'])] ?? null;
+			if ($alternationObject === null) {
+				continue;
+			}
+
+			foreach ($entry['branches'] as $branch) {
+				$alternationObject->pushGroup($branch, $group);
 			}
 		}
 
@@ -189,7 +194,7 @@ final class RegexGroupParser
 		?NodeInterface $alternation,
 		int $branch,
 		array $topology,
-		bool $inOptionalQuantification = false,
+		bool $inOptionalQuantification = false
 	): array
 	{
 		if ($node instanceof AlternationNode) {

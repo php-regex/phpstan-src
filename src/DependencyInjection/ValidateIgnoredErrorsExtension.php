@@ -2,10 +2,12 @@
 
 namespace PHPStan\DependencyInjection;
 
+use InvalidArgumentException;
 use Nette\DI\CompilerExtension;
 use Nette\Utils\RegexpException;
 use Nette\Utils\Strings;
 use Override;
+use PHPRegex\Parser\PcreTarget;
 use PHPStan\Analyser\ConstantResolver;
 use PHPStan\Analyser\NameScope;
 use PHPStan\Command\IgnoredRegexValidator;
@@ -15,8 +17,6 @@ use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
 use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\DirectTypeNodeResolverExtensionRegistryProvider;
-use PHPStan\Type\Regex\PHPRegexReader;
-use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\PhpDoc\TypeNodeResolver;
 use PHPStan\PhpDoc\TypeNodeResolverExtensionRegistry;
 use PHPStan\PhpDoc\TypeStringResolver;
@@ -34,6 +34,8 @@ use PHPStan\Type\Constant\OversizedArrayBuilder;
 use PHPStan\Type\DirectTypeAliasResolverProvider;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\OperatorTypeSpecifyingExtensionRegistry;
+use PHPStan\Type\Regex\PHPRegexReader;
+use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeAliasResolver;
 use PHPStan\Type\UnaryOperatorTypeSpecifyingExtensionRegistry;
@@ -265,7 +267,6 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 		return sprintf("Ignored error %s has an unescaped anchor '$' in the middle. This leads to unintended behavior. Use '\\$' instead.", $regex);
 	}
 
-
 	/**
 	 * The engine the running PHP links, falling back to the one it bundles:
 	 * a PCRE_VERSION spelling nobody has seen yet must not take the boot
@@ -275,9 +276,9 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 	{
 		try {
 			return PcreVersion::fromRuntime();
-		} catch (\InvalidArgumentException) {
+		} catch (InvalidArgumentException) {
 			return PcreVersion::fromString(
-				\PHPRegex\Parser\PcreTarget::bundledWith(PHP_VERSION_ID)->pcreVersion,
+				PcreTarget::bundledWith(PHP_VERSION_ID)->pcreVersion,
 				PcreVersion::SOURCE_RUNTIME,
 			);
 		}

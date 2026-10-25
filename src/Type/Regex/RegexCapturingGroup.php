@@ -16,7 +16,7 @@ final class RegexCapturingGroup
 		private readonly Type $type,
 		private readonly bool $forceNonOptional = false,
 		private readonly ?Type $forceType = null,
-		private readonly bool $forceAlternationBranchMatched = false,
+		private readonly bool $forceAlternationBranchMatched = false
 	)
 	{
 	}

@@ -4,6 +4,7 @@ namespace PHPStan\Type\Php;
 
 use Nette\Utils\RegexpException;
 use Nette\Utils\Strings;
+use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\FuncCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\DependencyInjection\AutowiredService;
@@ -38,7 +39,7 @@ final class PregSplitDynamicReturnTypeExtension implements DynamicFunctionReturn
 {
 
 	public function __construct(
-		private readonly BitwiseFlagHelper $bitwiseFlagAnalyser,
+		private readonly BitwiseFlagHelper $bitwiseFlagAnalyser
 	)
 	{
 	}
@@ -182,7 +183,7 @@ final class PregSplitDynamicReturnTypeExtension implements DynamicFunctionReturn
 	 * value still says: a list of the pieces the engine may interleave,
 	 * with the offset pairs where the flags may ask for them.
 	 */
-	private function genericReturnType(Type $subjectType, ?\PhpParser\Node\Arg $capturesOffset, \PHPStan\Analyser\Scope $scope): Type
+	private function genericReturnType(Type $subjectType, ?Arg $capturesOffset, Scope $scope): Type
 	{
 		$returnStringType = new StringType();
 

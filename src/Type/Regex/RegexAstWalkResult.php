@@ -22,7 +22,7 @@ final class RegexAstWalkResult
 		private array $capturingGroups,
 		private array $markVerbs,
 		private Type $subjectBaseType,
-		private ?Type $subjectNarrowType = null,
+		private ?Type $subjectNarrowType = null
 	)
 	{
 	}
