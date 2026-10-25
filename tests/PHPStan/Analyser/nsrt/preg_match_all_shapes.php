@@ -171,7 +171,7 @@ class Bug11457
 
 	function doFoobarNull(string $s): void {
 		if (preg_match_all('/(foo)?(bar)?(baz)?/', $s, $matches, PREG_OFFSET_CAPTURE|PREG_UNMATCHED_AS_NULL)) {
-			assertType("array{non-empty-list<array{string|null, int<0, max>}>, non-empty-list<array{'foo'|null, int<-1, max>}>, non-empty-list<array{'bar'|null, int<-1, max>}>, non-empty-list<array{'baz'|null, int<-1, max>}>}", $matches);
+			assertType("array{non-empty-list<array{string|null, int<0, max>}>, non-empty-list<array{''|'foo'|null, int<-1, max>}>, non-empty-list<array{''|'bar'|null, int<-1, max>}>, non-empty-list<array{'baz'|null, int<-1, max>}>}", $matches);
 		}
 	}
 }

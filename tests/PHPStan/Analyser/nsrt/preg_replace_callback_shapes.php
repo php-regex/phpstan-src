@@ -9,7 +9,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
+			assertType("array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', ''|'foo'|null, ''|'bar'|null, 'baz'|null}", $matches);
 			return '';
 		},
 		$s,
@@ -37,7 +37,7 @@ function (string $s): void {
 	preg_replace_callback(
 		'/(foo)?(bar)?(baz)?/',
 		function ($matches) {
-			assertType("array{array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz'|null, int<0, max>}, array{'foo'|null, int<-1, max>}, array{'bar'|null, int<-1, max>}, array{'baz'|null, int<-1, max>}}", $matches);
+			assertType("array{array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz'|null, int<0, max>}, array{''|'foo'|null, int<-1, max>}, array{''|'bar'|null, int<-1, max>}, array{'baz'|null, int<-1, max>}}", $matches);
 			return '';
 		},
 		$s,

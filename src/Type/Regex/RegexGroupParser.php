@@ -2,12 +2,10 @@
 
 namespace PHPStan\Type\Regex;
 
-use PHPRegex\Parser\Analysis\CaptureGroupShape;
 use PHPRegex\Parser\Analysis\CaptureShape;
 use PHPRegex\Parser\Analysis\CaptureShapeAnalyzer;
 use PHPRegex\Parser\Analysis\Participation;
 use PHPRegex\Parser\Node\AlternationNode;
-use PHPRegex\Parser\Node\AnchorNode;
 use PHPRegex\Parser\Node\ConditionalNode;
 use PHPRegex\Parser\Node\DefineNode;
 use PHPRegex\Parser\Node\GroupNode;
@@ -16,7 +14,6 @@ use PHPRegex\Parser\Node\KeepNode;
 use PHPRegex\Parser\Node\NodeInterface;
 use PHPRegex\Parser\Node\QuantifierBounds;
 use PHPRegex\Parser\Node\QuantifierNode;
-use PHPRegex\Parser\Node\RegexNode;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Php\PhpVersion;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
@@ -122,14 +119,21 @@ final class RegexGroupParser
 				? new ConstantStringType('')
 				: $this->stringTypeOf($groupShape->values, $groupShape->digitsOnly, $groupShape->nonFalsy, $groupShape->minLength);
 
+			// a non-trailing group the engine may leave unset keeps its
+			// key: the value widens to the empty match, the key stays
+			if ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset() && $groupShape->number !== \count($shape->groups)) {
+				$type = TypeCombinator::union($type, new ConstantStringType(''));
+			}
+
 			// the engine may leave a group unset for reasons the topology
-			// cannot see - a (*ACCEPT) cut, a condition that never ran -
-			// so the shape's own word decides optional presence too
+			// cannot see - a (*ACCEPT) cut, a condition that never ran.
+			// Only the last group's key can go absent; a non-trailing one
+			// keeps it, its value widened above
 			$group = new RegexCapturingGroup(
 				$groupShape->number,
 				$groupShape->name,
 				$entry['alternation'] !== null ? $alternations[spl_object_id($entry['alternation'])] ?? null : null,
-				$entry['inOptional'] || ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset()),
+				$entry['inOptional'] || ($entry['alternation'] === null && $groupShape->participation === Participation::MayBeUnset() && $groupShape->number === \count($shape->groups)),
 				$entry['parent'] !== null ? ($objects[$entry['parent']] ?? null) : null,
 				$type,
 			);

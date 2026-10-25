@@ -33,14 +33,14 @@ final class IgnoredRegexValidator
 
 		try {
 			$root = $this->reader->read($regex, $modifiers, $delimiter);
-		} catch (RegexException) {
+		} catch (\PHPRegex\Parser\Exception\ExceptionInterface) {
 			return new IgnoredRegexValidatorResult(ignoredTypes: [], anchorsInTheMiddle: false, allErrorsIgnored: false);
 		}
 
-		if (Strings::match($regex, '~(?<!\\\\)(?:\\\\\\\\)*\|\|~')) {
+		if (Strings::match($regex, '~(?<!\\\\)(?:\\\\\\\\)*\|\|~') !== null) {
 			return new IgnoredRegexValidatorResult(ignoredTypes: [], anchorsInTheMiddle: false, allErrorsIgnored: true, wrongSequence: '||', escapedWrongSequence: '\|\|');
 		}
-		if (Strings::match($regex, '~(?<!\\\\)(?:\\\\\\\\)*\(\)~')) {
+		if (Strings::match($regex, '~(?<!\\\\)(?:\\\\\\\\)*\(\)~') !== null) {
 			return new IgnoredRegexValidatorResult(ignoredTypes: [], anchorsInTheMiddle: false, allErrorsIgnored: true, wrongSequence: '()', escapedWrongSequence: '\(\)');
 		}
 
@@ -78,7 +78,7 @@ final class IgnoredRegexValidator
 				continue;
 			}
 
-			if ($type instanceof ObjectType) {
+			if ($type->isObject()->yes()) {
 				continue;
 			}
 

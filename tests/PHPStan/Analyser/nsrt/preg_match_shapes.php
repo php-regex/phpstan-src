@@ -239,7 +239,7 @@ function doFoo(string $row): void
 		assertType("array{0: 'a'|'ab', 1: 'a'|'ab', 2?: 'b'}", $matches);
 	}
 	if (preg_match('~^(a(b)?)?$~', $row, $matches) === 1) {
-		assertType("list{0: ''|'a'|'ab', 1?: 'a'|'ab', 2?: 'b'}", $matches);
+		assertType("list{0: ''|'a'|'ab', 1?: ''|'a'|'ab', 2?: 'b'}", $matches);
 	}
 }
 
@@ -265,14 +265,14 @@ function (string $size): void {
 	if (preg_match('~^a\.b(c(\d+)(\d+)(\s+))?d~', $size, $matches) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('list{0: non-falsy-string, 1?: non-falsy-string, 2?: \'\'|numeric-string, 3?: \'\'|numeric-string, 4?: non-falsy-string}', $matches);
+	assertType('array{0: non-falsy-string, 1: string, 2: \'\'|numeric-string, 3: \'\'|numeric-string, 4?: non-falsy-string}|array{non-falsy-string}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('~^a\.b(c(\d+))?d~', $size, $matches) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('list{0: non-falsy-string, 1?: non-falsy-string, 2?: numeric-string}', $matches);
+	assertType('list{0: non-falsy-string, 1?: string, 2?: numeric-string}', $matches);
 };
 
 function (string $size): void {
@@ -286,7 +286,7 @@ function (string $size): void {
 	if (preg_match('~^a\.b(c(\d+)?)?d~', $size, $matches) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('list{0: non-falsy-string, 1?: non-falsy-string, 2?: numeric-string}', $matches);
+	assertType('list{0: non-falsy-string, 1?: string, 2?: numeric-string}', $matches);
 };
 
 function (string $size): void {

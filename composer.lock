@@ -4,7 +4,7 @@
     "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
     "This file is @generated automatically"
   ],
-  "content-hash": "155ecbe16b97fd6883ad1f25a9ad8769",
+  "content-hash": "40f34bc1af7de080e67bf21f791848ad",
   "packages": [
     {
       "name": "clue/ndjson-react",
@@ -1542,12 +1542,12 @@
       "source": {
         "type": "git",
         "url": "https://github.com/php-regex/regex-parser-php74.git",
-        "reference": "706610b34fc912474c8ab46af1695248697128e8"
+        "reference": "14c5821f62ccda0c4fdd88691c377b5c1817a1ff"
       },
       "dist": {
         "type": "zip",
-        "url": "https://api.github.com/repos/php-regex/regex-parser-php74/zipball/706610b34fc912474c8ab46af1695248697128e8",
-        "reference": "706610b34fc912474c8ab46af1695248697128e8",
+        "url": "https://api.github.com/repos/php-regex/regex-parser-php74/zipball/14c5821f62ccda0c4fdd88691c377b5c1817a1ff",
+        "reference": "14c5821f62ccda0c4fdd88691c377b5c1817a1ff",
         "shasum": ""
       },
       "require": {
@@ -1606,7 +1606,7 @@
           "url": "https://github.com/sponsors/yoeunes"
         }
       ],
-      "time": "2026-10-23T23:08:28+00:00"
+      "time": "2026-10-25T11:50:38+00:00"
     },
     {
       "name": "phpstan/php-8-stubs",

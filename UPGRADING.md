@@ -30,14 +30,10 @@ their shapes; the ones that change, change toward what the engine does:
   honoured, up or down, as a statement about the analysed project, and
   the engine PHPStan itself runs is heard only for the PHP it shares a
   minor with.
-- `RegularExpressionPatternRule` now reports a pattern the analysed
-  engine refuses while the running one compiles it, in the parser's own
-  words, and its messages for patterns both refuse changed voice: what
-  PHPStan's own engine said ("Compilation failed: missing closing
-  parenthesis at offset 1 in pattern: ~(~") the target's word replaces
-  ("Expected ) at end of input (found eof). at offset 1"). Identifiers
-  stay `regexp.pattern`; baselines matching the old message texts need
-  re-recording.
+- `RegularExpressionPatternRule` keeps the running engine's word first:
+  every message a baseline ever wrote stays. A pattern the running
+  engine compiles but the analysed one refuses is reported in the
+  parser's own words. Identifiers stay `regexp.pattern`.
 
 - Under `i` without `u` the engine folds ASCII letters only: a literal
   or a class past seven bits keeps its exact values

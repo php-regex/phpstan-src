@@ -34,7 +34,7 @@
 		"ondrejmirtes/better-reflection": "6.75.0.2",
 		"ondrejmirtes/composer-attribute-collector": "^1.2.0",
 		"ondrejmirtes/php-merge": "^4.1",
-		"php-regex/regex-parser-php74": "2.x-dev#706610b34fc912474c8ab46af1695248697128e8",
+		"php-regex/regex-parser-php74": "2.x-dev#14c5821f62ccda0c4fdd88691c377b5c1817a1ff",
 		"phpstan/php-8-stubs": "0.4.39",
 		"phpstan/phpdoc-parser": "2.3.6",
 		"react/child-process": "^0.7",

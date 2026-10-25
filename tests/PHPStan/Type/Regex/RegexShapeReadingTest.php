@@ -541,7 +541,7 @@ final class RegexShapeReadingTest extends TestCase
 		self::assertNotNull($result);
 		$groups = $result->getCapturingGroups();
 		self::assertCount(2, $groups, 'the condition holds group 1');
-		self::assertSame("'a'", $groups[1]->getType()->describe(VerbosityLevel::precise()));
+		self::assertSame("''|'a'", $groups[1]->getType()->describe(VerbosityLevel::precise()), 'the condition group carries the empty arm beside its capture');
 		self::assertSame("'c'", $groups[2]->getType()->describe(VerbosityLevel::precise()));
 	}
 

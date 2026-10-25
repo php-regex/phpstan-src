@@ -14,9 +14,9 @@ function doFoo(string $s) {
 
 function doUnmatchedAsNull(string $s): void {
 	if (preg_match('/(foo)?(bar)?(baz)?/', $s, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType("array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
+		assertType("array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', ''|'foo'|null, ''|'bar'|null, 'baz'|null}", $matches);
 	}
-	assertType("array{}|array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
+	assertType("array{}|array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', ''|'foo'|null, ''|'bar'|null, 'baz'|null}", $matches);
 }
 
 // see https://3v4l.org/VeDob
@@ -37,7 +37,7 @@ function bug11331a(string $url):void {
 		(?<a>.+)
 	)?
 	(?<b>.+)}mix', $url, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType('array{0: non-empty-string, a: non-empty-string|null, 1: non-empty-string|null, b: non-empty-string, 2: non-empty-string}', $matches);
+		assertType('array{0: non-empty-string, a: string|null, 1: string|null, b: non-empty-string, 2: non-empty-string}', $matches);
 	}
 }
 
@@ -47,7 +47,7 @@ function bug11331b(string $url):void {
 		(?<a>.+)
 	)?
 	(?<b>.+)?}mix', $url, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType('array{0: string, a: non-empty-string|null, 1: non-empty-string|null, b: non-empty-string|null, 2: non-empty-string|null}', $matches);
+		assertType('array{0: string, a: string|null, 1: string|null, b: non-empty-string|null, 2: non-empty-string|null}', $matches);
 	}
 }
 
@@ -179,7 +179,7 @@ function (string $s): void {
 
 function (string $s): void {
 	if (preg_match('/^%([0-9]*\$)?[0-9]*\.?[0-9]*([sbdeEfFgGhHouxX])$/', $s, $matches, PREG_UNMATCHED_AS_NULL) === 1) {
-		assertType("array{non-falsy-string, non-falsy-string|null, 'b'|'d'|'E'|'e'|'F'|'f'|'G'|'g'|'H'|'h'|'o'|'s'|'u'|'X'|'x'}", $matches);
+		assertType("array{non-falsy-string, string|null, 'b'|'d'|'E'|'e'|'F'|'f'|'G'|'g'|'H'|'h'|'o'|'s'|'u'|'X'|'x'}", $matches);
 	}
 };
 

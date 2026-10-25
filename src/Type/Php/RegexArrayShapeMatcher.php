@@ -326,7 +326,7 @@ final class RegexArrayShapeMatcher
 			}
 		}
 		foreach ($composed as $i => [$captureGroup, $groupValueType, $optional]) {
-			if ($captureGroup->isNamed() && $names[$captureGroup->getName()]['type'] instanceof Type) {
+			if ($captureGroup->isNamed() && $names[$captureGroup->getName()]['type'] !== null) {
 				$builder->setOffsetValueType(
 					$this->getKeyType($captureGroup->getName()),
 					$names[$captureGroup->getName()]['type'],
