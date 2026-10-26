@@ -31,7 +31,7 @@ class NullCoalesceRulePhp73Test extends RuleTestCase
 	{
 		$this->analyse([__DIR__ . '/data/bug-15297.php'], [
 			[
-				'Offset \'foo2\' on array{0: non-falsy-string, foo1: null, 1: null, bar1: null, 2: null, foo2: non-falsy-string, 3: non-falsy-string, bar2?: non-empty-string, ...} on left side of ?? always exists and is not nullable.',
+				'Offset \'foo2\' on array{0: non-falsy-string, foo1: null, 1: null, bar1: null, 2: null, foo2: non-falsy-string, 3: non-falsy-string, bar2?: non-falsy-string, ...} on left side of ?? always exists and is not nullable.',
 				11,
 			],
 		]);

@@ -18,7 +18,7 @@ class Foo {
         assertType('non-empty-string', str_replace($search, $replacement, $subject));
         assertType('non-empty-string', str_ireplace($search, $replacement, $subject));
 
-        assertType('non-empty-string|null', preg_replace($search, $replacement, $subject));
+        assertType('string|null', preg_replace($search, $replacement, $subject));
 
         assertType('non-empty-string', substr_replace($subject, $replacement, 1));
         assertType('non-empty-string', substr_replace($subject, $replacement, -1));
@@ -31,4 +31,11 @@ class Foo {
 		$price = str_replace(',', '.', $s);
 		assertType('non-empty-string&uppercase-string', $price);
 	}
+}
+
+/** @param non-falsy-string $s */
+function pregReplaceWritingAFalsyReplacement(string $s): void {
+	// the replacement writes '0', which is falsy: the result is non-empty, not non-falsy
+	assertType('non-empty-string|null', preg_replace('/a/', '0', $s));
+	assertType('non-falsy-string|null', preg_replace('/a/', 'b', $s));
 }

@@ -1,0 +1,702 @@
+[
+    {
+        "pattern": "#^[^ab\\]cde]#",
+        "call": "match:null",
+        "subject": "MCMjI2FiSw==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^[^]cde]#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^a*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^a*?\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(?<=(?<=(?<=a)b)c).#",
+        "call": "match:null",
+        "subject": "YWJjMA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(?<=ab(cd(?<=...))).#",
+        "call": "match:null",
+        "subject": "YWJjZDA=",
+        "engine": "YToyOntpOjA7czoxOiIwIjtpOjE7czoyOiJjZCI7fQ==",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, 'cd'}",
+        "phpregex": "array{non-empty-string, 'cd'}"
+    },
+    {
+        "pattern": "#.c*#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(?(1)abz)(.)#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToyOntpOjA7czoxOiIwIjtpOjE7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, non-empty-string}",
+        "phpregex": "array{non-empty-string, non-empty-string}"
+    },
+    {
+        "pattern": "#a*\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "# *\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#a*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#=*\\w#",
+        "call": "match:null",
+        "subject": "MDBhMSAKYTE=",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\d*\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\d*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\D*\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\D*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\s*\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\s*\\w#",
+        "call": "match:null",
+        "subject": "MGI=",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\S*\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\S*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\w*\\S#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\w*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\W*\\S#",
+        "call": "match:null",
+        "subject": "MGHZow==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\W*\\w#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#a*[^a]#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "# *\\H#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\x0b*\\V#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(\\R*)(.)#s",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#(\\R)*(.)#s",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#((?>\\r\\n|\\n|\\x0b|\\f|\\r|\\x85)*)(.)#s",
+        "call": "match:null",
+        "subject": "MCA1MWIuSzg=",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#^(a)*+(\\w)#",
+        "call": "match:null",
+        "subject": "MHd3",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, ''|'a', non-empty-string}"
+    },
+    {
+        "pattern": "#^(?:a)*+(\\w)#",
+        "call": "match:null",
+        "subject": "MHdiCks6OjE=",
+        "engine": "YToyOntpOjA7czoxOiIwIjtpOjE7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, non-empty-string}",
+        "phpregex": "array{non-empty-string, non-empty-string}"
+    },
+    {
+        "pattern": "~(*: A \\ and #comment\n     \\ B)x~x",
+        "call": "match:null",
+        "subject": "eA==",
+        "engine": "YToyOntpOjA7czoxOiJ4IjtzOjQ6Ik1BUksiO3M6MjY6IiBBIFwgYW5kICNjb21tZW50CiAgICAgXCBCIjt9",
+        "reason": "value",
+        "key": "MARK",
+        "phplrt": "array{0: non-falsy-string, MARK?: \" A \\\\ and \\n     \\\\ B\"}",
+        "phpregex": "array{0: 'x', MARK?: \" A \\\\ and #comment\\n     \\\\ B\"}"
+    },
+    {
+        "pattern": "~L(?#(|++<!(2)?~",
+        "call": "match:null",
+        "subject": "",
+        "engine": "YToxOntpOjA7czowOiIiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{''|'L'}"
+    },
+    {
+        "pattern": "#(A*)\\E+#",
+        "call": "match:null",
+        "subject": "",
+        "engine": "YToyOntpOjA7czowOiIiO2k6MTtzOjA6IiI7fQ==",
+        "reason": "value",
+        "key": 0,
+        "phplrt": "array{non-empty-string, string}",
+        "phpregex": "array{uppercase-string, uppercase-string}"
+    },
+    {
+        "pattern": "#(?<=|b?).#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(?=|b?).#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(?>|b?).#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#.x*#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\p{sc=Common}#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\p{Script=Zyyy}#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\p{Common}#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#a*\\x{100}*\\w#u",
+        "call": "match:null",
+        "subject": "MAp3MHc=",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PC#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PL#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PM#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PP#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PS#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PZ#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^(\\X*)(.)#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#^(\\X*?)(.)#u",
+        "call": "match:null",
+        "subject": "MC4=",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#^\\X#u",
+        "call": "match:null",
+        "subject": "MHUgdWIKS2E=",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^[\\P{Yi}]#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\X*(.)#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToyOntpOjA7czoxOiIwIjtpOjE7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, non-empty-string}",
+        "phpregex": "array{non-empty-string, non-empty-string}"
+    },
+    {
+        "pattern": "#(?<=\\d{2,3}|áBC).#u",
+        "call": "match:null",
+        "subject": "MDAwYw==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(\\R*)(.)#su",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#(\\R)*(.)#su",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#^\\p{Xan}#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^[\\p{Xan}]#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^\\p{Xwd}#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^[\\p{Xwd}]#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#(\\X*)(.)#su",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YTozOntpOjA7czoxOiIwIjtpOjE7czowOiIiO2k6MjtzOjE6IjAiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string, string, non-empty-string}",
+        "phpregex": "array{non-empty-string, string, non-empty-string}"
+    },
+    {
+        "pattern": "#^\\P{Xuc}#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^[\\P{Xuc}]#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\pN+\\z#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#\\pN+#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "~L(?#(|++<!(2)?~u",
+        "call": "match:null",
+        "subject": "",
+        "engine": "YToxOntpOjA7czowOiIiO30=",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{''|'L'}"
+    },
+    {
+        "pattern": "#^(a*\\w|ab)=(a*\\w|ab)#",
+        "call": "match:null",
+        "subject": "MD1hMA==",
+        "engine": "YTozOntpOjA7czo0OiIwPWEwIjtpOjE7czoxOiIwIjtpOjI7czoyOiJhMCI7fQ==",
+        "reason": "falsy",
+        "key": 1,
+        "phplrt": "array{non-falsy-string, non-falsy-string, non-falsy-string}",
+        "phpregex": "array{non-falsy-string, non-empty-string, non-empty-string}"
+    },
+    {
+        "pattern": "#^\\PL+#u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "#^[[:alnum:]]#",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    }
+]

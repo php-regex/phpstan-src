@@ -12,6 +12,7 @@ use PHPStan\Command\IgnoredRegexValidator;
 use PHPStan\File\FileExcluder;
 use PHPStan\Php\ComposerPhpVersionFactory;
 use PHPStan\Php\ConfiguredPhpVersionRangeHelper;
+use PHPStan\Php\PcreVersionFactory;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\DirectTypeNodeResolverExtensionRegistryProvider;
 use PHPStan\PhpDoc\TypeNodeResolver;
@@ -31,7 +32,8 @@ use PHPStan\Type\Constant\OversizedArrayBuilder;
 use PHPStan\Type\DirectTypeAliasResolverProvider;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\OperatorTypeSpecifyingExtensionRegistry;
-use PHPStan\Type\Regex\Parser\RegexParser;
+use PHPStan\Type\Regex\PHPRegexReader;
+use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeAliasResolver;
 use PHPStan\Type\UnaryOperatorTypeSpecifyingExtensionRegistry;
@@ -67,7 +69,6 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 			return;
 		}
 
-		$parser = new RegexParser();
 		$reflectionProvider = new DummyReflectionProvider();
 		$reflectionProviderProvider = new DirectReflectionProviderProvider($reflectionProvider);
 
@@ -89,10 +90,16 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 		try {
 			$composerPhpVersionFactory = new ComposerPhpVersionFactory([]);
 			$constantResolver = new ConstantResolver($reflectionProviderProvider, [], new ConfiguredPhpVersionRangeHelper(null, $composerPhpVersionFactory), container: null);
+			$initializerExprTypeResolver = new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true);
 
 			$phpDocParserConfig = new ParserConfig([]);
 			$ignoredRegexValidator = new IgnoredRegexValidator(
-				$parser,
+				// ignoreErrors patterns are matched by the running PHP
+				new PHPRegexReader(
+					new PhpVersion(PHP_VERSION_ID),
+					(new PcreVersionFactory(null, null))->create(),
+					new RegexExpressionHelper($initializerExprTypeResolver),
+				),
 				new TypeStringResolver(
 					new Lexer($phpDocParserConfig),
 					new TypeParser($phpDocParserConfig, new ConstExprParser($phpDocParserConfig)),
@@ -122,7 +129,7 @@ final class ValidateIgnoredErrorsExtension extends CompilerExtension
 
 						}),
 						$constantResolver,
-						new InitializerExprTypeResolver($constantResolver, $reflectionProviderProvider, new PhpVersion(PHP_VERSION_ID), new OperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new UnaryOperatorTypeSpecifyingExtensionRegistry(new DirectExtensionsCollection([])), new OversizedArrayBuilder(), true),
+						$initializerExprTypeResolver,
 						reportUnsafeArrayStringKeyCasting: null,
 					),
 				),

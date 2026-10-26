@@ -16,7 +16,7 @@ function doFoo(string $str): void
 	}
 
 	if (preg_match('/^(?:0|123)$/', $str)) {
-		assertType('non-empty-string', $str);
+		assertType('\'0\'|"0\\n"|\'123\'|"123\\n"', $str);
 	}
 
 	if (preg_match('/^(?:0|[1-9][0-9]*)$/', $str)) {
@@ -28,10 +28,10 @@ function doFoo(string $str): void
 	}
 
 	if (preg_match('/^(?:0|abc)$/', $str)) {
-		assertType('non-empty-string', $str);
+		assertType('\'0\'|"0\\n"|\'abc\'|"abc\\n"', $str);
 	}
 	if (preg_match('/^(?:2|abc)$/', $str)) {
-		assertType('non-falsy-string', $str);
+		assertType('\'2\'|"2\\n"|\'abc\'|"abc\\n"', $str);
 	}
 
 	if (preg_match('/^(0|[1-9][0-9]*)$/', $str, $matches)) {

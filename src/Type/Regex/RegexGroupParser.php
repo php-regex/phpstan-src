@@ -2,949 +2,472 @@
 
 namespace PHPStan\Type\Regex;
 
-use Nette\Utils\RegexpException;
-use Nette\Utils\Strings;
-use Phplrt\Contracts\Parser\Exception\ParserExceptionInterface;
-use Phplrt\Source\StringSource;
+use PHPRegex\Parser\Analysis\CaptureGroupShape;
+use PHPRegex\Parser\Analysis\CaptureShape;
+use PHPRegex\Parser\Analysis\CaptureShapeAnalyzer;
+use PHPRegex\Parser\Analysis\Participation;
+use PHPRegex\Parser\Node\AlternationNode;
+use PHPRegex\Parser\Node\ConditionalNode;
+use PHPRegex\Parser\Node\DefineNode;
+use PHPRegex\Parser\Node\GroupNode;
+use PHPRegex\Parser\Node\GroupType;
+use PHPRegex\Parser\Node\KeepNode;
+use PHPRegex\Parser\Node\NodeInterface;
+use PHPRegex\Parser\Node\QuantifierBounds;
+use PHPRegex\Parser\Node\QuantifierNode;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Php\PhpVersion;
-use PHPStan\ShouldNotHappenException;
-use PHPStan\TrinaryLogic;
+use PHPStan\Type\Accessory\AccessoryDecimalIntegerStringType;
+use PHPStan\Type\Accessory\AccessoryLowercaseStringType;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNonFalsyStringType;
 use PHPStan\Type\Accessory\AccessoryNumericStringType;
+use PHPStan\Type\Accessory\AccessoryUppercaseStringType;
 use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\IntersectionType;
-use PHPStan\Type\Regex\Parser\RegexNode;
-use PHPStan\Type\Regex\Parser\RegexParser;
-use PHPStan\Type\Regex\Parser\RegexSyntaxException;
 use PHPStan\Type\StringType;
 use PHPStan\Type\Type;
 use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\UnionType;
+use function array_filter;
 use function array_key_exists;
-use function array_pop;
-use function array_values;
+use function array_unique;
 use function count;
-use function in_array;
-use function is_int;
-use function preg_replace;
-use function rtrim;
-use function sscanf;
-use function str_contains;
-use function str_replace;
-use function strlen;
-use function substr;
-use function trim;
+use function max;
+use function spl_object_id;
 
+/**
+ * Builds the capturing group list RegexArrayShapeMatcher turns into $matches types.
+ *
+ * The value of each group comes from PHPRegex's CaptureShapeAnalyzer. This class
+ * only walks the tree to find where each group sits: its parent group, and the
+ * alternation branch it belongs to.
+ */
 #[AutowiredService]
 final class RegexGroupParser
 {
 
-	private const NOT_SUPPORTED_MODIFIERS = [
-		'J', // rare modifier too complicated to support
-	];
-
-	// upper bound on the number of constant string literals enumerated from a group,
-	// to avoid combinatorial explosion from nested optional/bounded quantifications
-	private const LITERALS_LIMIT = 100;
-
-	private const NEGATIVE_ASSERTIONS = ['#negativelookahead', '#negativelookbehind'];
-
-	private const ASSERTIONS = ['#lookahead', '#lookbehind', '#negativelookahead', '#negativelookbehind'];
-
-	private const CONDITIONS = ['#namedcondition', '#absolutecondition', '#relativecondition', '#assertioncondition'];
-
-	private static ?RegexParser $parser = null;
-
-	/** @var array<string, ?RegexNode> */
-	private static array $parsedAst = [];
+	/** @var array<string, ?RegexAstWalkResult> */
+	private static array $parsedShapes = [];
 
 	public function __construct(
 		private PhpVersion $phpVersion,
-		private RegexExpressionHelper $regexExpressionHelper,
+		private PHPRegexReader $reader,
 	)
 	{
 	}
 
 	public function parseGroups(string $regex): ?RegexAstWalkResult
 	{
-		self::$parser ??= new RegexParser();
+		// the same pattern can be read differently for another PHP or PCRE2 version
+		$cacheKey = $this->phpVersion->getVersionId() . "\n" . $this->reader->judgedPcreVersion() . "\n" . $regex;
 
-		if (array_key_exists($regex, self::$parsedAst)) {
-			$ast = self::$parsedAst[$regex];
-			if ($ast === null) {
-				return null;
-			}
-
-			$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
-		} else {
-			try {
-				Strings::match('', $regex);
-			} catch (RegexpException) {
-				// pattern is invalid, so let the RegularExpressionPatternRule report it
-				return self::$parsedAst[$regex] = null;
-			}
-
-			$modifiers = $this->regexExpressionHelper->getPatternModifiers($regex) ?? '';
-			foreach (self::NOT_SUPPORTED_MODIFIERS as $notSupportedModifier) {
-				if (str_contains($modifiers, $notSupportedModifier)) {
-					return self::$parsedAst[$regex] = null;
-				}
-			}
-
-			if (str_contains($modifiers, 'x')) {
-				// in freespacing mode the # character starts a comment and runs until the end of the line
-				// but \# is an escaped literal hash, and (?#...) is an inline comment - neither starts a line comment
-				$regex = preg_replace('/(?<!\\\\)(?<!\(\?)#.*/', '', $regex) ?? '';
-			}
-
-			$rawRegex = $this->regexExpressionHelper->removeDelimitersAndModifiers($regex);
-			try {
-				$ast = self::$parser->parse(StringSource::createFromString($rawRegex));
-			} catch (ParserExceptionInterface | RegexSyntaxException) {
-				return self::$parsedAst[$regex] = null;
-			}
-			if (!$ast instanceof RegexNode) {
-				throw new ShouldNotHappenException();
-			}
-			if ($this->containsSubroutineCall($ast)) {
-				// a subroutine call matches what another group matches, but it does not set that group
-				return self::$parsedAst[$regex] = null;
-			}
-			self::$parsedAst[$regex] = $ast;
+		if (array_key_exists($cacheKey, self::$parsedShapes)) {
+			return self::$parsedShapes[$cacheKey];
 		}
 
-		$this->updateAlternationAstRemoveVerticalBarsAndAddEmptyToken($ast);
-		$this->updateCapturingAstAddEmptyToken($ast);
-
-		$captureOnlyNamed = false;
-		if ($this->phpVersion->supportsPregCaptureOnlyNamedGroups()) {
-			$captureOnlyNamed = str_contains($modifiers, 'n');
+		$ast = $this->reader->readExpression($regex);
+		if ($ast === null) {
+			return self::$parsedShapes[$cacheKey] = null;
 		}
 
-		$astWalkResult = $this->walkRegexAst(
-			$ast,
-			null,
-			0,
-			false,
-			null,
-			$captureOnlyNamed,
-			false,
-			$modifiers,
-			RegexAstWalkResult::createEmpty(),
-		);
+		$shape = (new CaptureShapeAnalyzer())->analyze($ast);
 
-		$subjectAsGroupResult = $this->walkGroupAst(
-			$ast,
-			false,
-			$modifiers,
-			RegexGroupWalkResult::createEmpty(),
-		);
+		return self::$parsedShapes[$cacheKey] = $this->buildWalkResult($shape, $ast->pattern);
+	}
 
-		if (!$subjectAsGroupResult->mightContainEmptyStringLiteral() && !$this->containsEscapeK($ast)) {
-			// we could handle numeric-string, in case we know the regex is delimited by ^ and $
-			if ($subjectAsGroupResult->isNonFalsy()->yes()) {
-				$astWalkResult = $astWalkResult->withSubjectBaseType(
-					new IntersectionType([new StringType(), new AccessoryNonFalsyStringType()]),
+	private function buildWalkResult(CaptureShape $shape, NodeInterface $pattern): RegexAstWalkResult
+	{
+		$topology = new RegexTopology();
+		$this->place($pattern, $topology, null, null, 0);
+
+		$walkResult = RegexAstWalkResult::createEmpty();
+		foreach ($shape->marks as $mark) {
+			$walkResult = $walkResult->markVerb($mark);
+		}
+
+		$alternations = [];
+		foreach ($topology->getAlternations() as $node) {
+			$walkResult = $walkResult->nextAlternationId();
+			$alternations[spl_object_id($node)] = new RegexAlternation(
+				$walkResult->getAlternationId(),
+				$topology->getBranchCount($node),
+			);
+		}
+
+		$walkResult = $this->addGroups($shape, $topology, $alternations, $walkResult);
+
+		$containsEscapeK = $this->containsEscapeK($pattern);
+
+		return $walkResult
+			->withSubjectBaseType($containsEscapeK ? new StringType() : $this->typeOf($shape->whole))
+			->withSubjectNarrowType($this->subjectNarrowType($shape))
+			// a scan resumes after an empty match, where a zero-width first branch like ^ no longer matches
+			->withScanBaseType($shape->scanWhole === null || $containsEscapeK ? null : $this->typeOf($shape->scanWhole))
+			->withCases($this->cases($shape));
+	}
+
+	/**
+	 * Creates the group objects in tree order, so that a parent group, capturing
+	 * or not, exists before its children.
+	 *
+	 * @param array<int, RegexAlternation> $alternations by alternation node id
+	 */
+	private function addGroups(CaptureShape $shape, RegexTopology $topology, array $alternations, RegexAstWalkResult $walkResult): RegexAstWalkResult
+	{
+		$everyBranchAlternations = $this->alternationsCapturingInEveryBranch($topology);
+		$placementsByNumber = $topology->getPlacementsByNumber();
+
+		$groupShapes = [];
+		foreach ($shape->groups as $groupShape) {
+			$groupShapes[$groupShape->number] = $groupShape;
+		}
+
+		/** @var array<int, RegexCapturingGroup|RegexNonCapturingGroup> $objects by node id */
+		$objects = [];
+		/** @var array<int, RegexCapturingGroup> $capturingGroups by number */
+		$capturingGroups = [];
+		foreach ($topology->getPlacements() as $placement) {
+			$parent = $placement->getParentNodeId() !== null ? ($objects[$placement->getParentNodeId()] ?? null) : null;
+			$number = $placement->getNumber();
+
+			if ($number === null) {
+				$objects[$placement->getNodeId()] = new RegexNonCapturingGroup(
+					$placement->getAlternation() !== null ? ($alternations[spl_object_id($placement->getAlternation())] ?? null) : null,
+					$placement->inOptionalQuantification(),
+					$parent,
+					$placement->resetsGroupCounter(),
 				);
-			} elseif ($subjectAsGroupResult->isNonEmpty()->yes()) {
-				$astWalkResult = $astWalkResult->withSubjectBaseType(
-					new IntersectionType([new StringType(), new AccessoryNonEmptyStringType()]),
-				);
-			}
-		}
-
-		return $astWalkResult;
-	}
-
-	private function createEmptyTokenRegexNode(): RegexNode
-	{
-		return new RegexNode('token', 'literal', '');
-	}
-
-	private function containsSubroutineCall(RegexNode $ast): bool
-	{
-		if ($ast->getId() === 'token' && $ast->getValueToken() === 'subroutine') {
-			return true;
-		}
-
-		foreach ($ast->getChildren() as $child) {
-			if ($this->containsSubroutineCall($child)) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	private function updateAlternationAstRemoveVerticalBarsAndAddEmptyToken(RegexNode $ast): void
-	{
-		$children = $ast->getChildren();
-
-		foreach ($children as $i => $child) {
-			$this->updateAlternationAstRemoveVerticalBarsAndAddEmptyToken($child);
-
-			if ($ast->getId() !== '#alternation' || $child->getValueToken() !== 'alternation') {
 				continue;
 			}
 
-			unset($children[$i]);
-
-			if ($i !== 0
-				&& isset($children[$i + 1])
-				&& $children[$i + 1]->getValueToken() !== 'alternation') {
+			// in a branch reset, several nodes share one group number
+			if (isset($capturingGroups[$number])) {
+				$objects[$placement->getNodeId()] = $capturingGroups[$number];
 				continue;
 			}
 
-			$children[$i] = $this->createEmptyTokenRegexNode();
-		}
-
-		$ast->setChildren(array_values($children));
-	}
-
-	private function updateCapturingAstAddEmptyToken(RegexNode $ast): void
-	{
-		foreach ($ast->getChildren() as $child) {
-			$this->updateCapturingAstAddEmptyToken($child);
-		}
-
-		if ($ast->getId() !== '#capturing' || $ast->getChildren() !== []) {
-			return;
-		}
-
-		$ast->setChildren([new RegexNode('#alternation', children: [$this->createEmptyTokenRegexNode()])]);
-	}
-
-	private function containsEscapeK(RegexNode $ast): bool
-	{
-		if ($ast->getId() === 'token' && $ast->getValueToken() === 'match_point_reset') {
-			return true;
-		}
-
-		foreach ($ast->getChildren() as $child) {
-			if ($this->containsEscapeK($child)) {
-				return true;
+			$groupShape = $groupShapes[$number] ?? null;
+			if ($groupShape === null) {
+				continue;
 			}
-		}
 
-		return false;
-	}
+			// a number captured in several branches of a branch reset sits where its
+			// last placement does, and in the branches of all of them
+			$placements = $placementsByNumber[$number];
+			$last = $placements[count($placements) - 1];
+			$groupAlternation = $last->getAlternation();
+			$inOptional = $last->inOptionalQuantification();
 
-	private function walkRegexAst(
-		RegexNode $ast,
-		?RegexAlternation $alternation,
-		int $combinationIndex,
-		bool $inOptionalQuantification,
-		RegexCapturingGroup|RegexNonCapturingGroup|null $parentGroup,
-		bool $captureOnlyNamed,
-		bool $repeatedMoreThanOnce,
-		string $patternModifiers,
-		RegexAstWalkResult $astWalkResult,
-	): RegexAstWalkResult
-	{
-		$group = null;
-		if ($ast->getId() === '#capturing') {
-			$astWalkResult = $astWalkResult->nextCaptureGroupId();
+			// a branch reset whose groups all capture in every branch sets them all, whichever branch matches
+			if ($groupAlternation !== null && isset($everyBranchAlternations[spl_object_id($groupAlternation)])) {
+				$groupAlternation = null;
+			}
 
+			// e.g. a group inside (?(DEFINE)...): it is numbered but never set
+			$neverMatched = $groupShape->participation === Participation::Never();
+			$type = $neverMatched
+				? new ConstantStringType('')
+				: $this->typeOf($groupShape);
+
+			// the analysis can know that a group may be unset for reasons the tree
+			// walk does not see, e.g. a (*ACCEPT) before it or a negative lookaround around it
+			$unsetUnseen = $neverMatched
+				|| (
+					$groupShape->participation === Participation::MayBeUnset()
+					&& !$inOptional
+					&& ($parent === null || !$parent->isOptional())
+					&& ($groupAlternation === null || $this->mayBeUnsetInItsBranch($shape, $number))
+				);
+			if ($unsetUnseen) {
+				$inOptional = true;
+			}
+
+			$alternation = $groupAlternation !== null ? ($alternations[spl_object_id($groupAlternation)] ?? null) : null;
 			$group = new RegexCapturingGroup(
-				$astWalkResult->getCaptureGroupId(),
-				null,
+				$groupShape->number,
+				$groupShape->name,
 				$alternation,
-				$inOptionalQuantification,
-				$parentGroup,
-				$this->createGroupType(
-					$ast,
-					$this->allowConstantTypes($patternModifiers, $repeatedMoreThanOnce, $parentGroup),
-					$patternModifiers,
-				),
+				$inOptional,
+				$parent,
+				$type,
+				neverMatched: $neverMatched,
 			);
-			$parentGroup = $group;
-		} elseif ($ast->getId() === '#namedcapturing') {
-			$astWalkResult = $astWalkResult->nextCaptureGroupId();
+			$objects[$placement->getNodeId()] = $group;
+			$capturingGroups[$number] = $group;
 
-			$name = $ast->getChild(0)->getValueValue();
-			$group = new RegexCapturingGroup(
-				$astWalkResult->getCaptureGroupId(),
-				$name,
-				$alternation,
-				$inOptionalQuantification,
-				$parentGroup,
-				$this->createGroupType(
-					$ast,
-					$this->allowConstantTypes($patternModifiers, $repeatedMoreThanOnce, $parentGroup),
-					$patternModifiers,
-				),
-			);
-			$parentGroup = $group;
-		} elseif ($ast->getId() === '#noncapturing') {
-			$group = new RegexNonCapturingGroup(
-				$alternation,
-				$inOptionalQuantification,
-				$parentGroup,
-				false,
-			);
-			$parentGroup = $group;
-		} elseif ($ast->getId() === '#noncapturingreset') {
-			$group = new RegexNonCapturingGroup(
-				$alternation,
-				$inOptionalQuantification,
-				$parentGroup,
-				true,
-			);
-			$parentGroup = $group;
-		} elseif (
-			in_array($ast->getId(), self::NEGATIVE_ASSERTIONS, true)
-			|| in_array($ast->getId(), self::CONDITIONS, true)
-		) {
-			// capturing groups in a negative assertion are never set when the whole pattern matches,
-			// capturing groups in a conditional subpattern are set only when its condition says so
-			$group = new RegexNonCapturingGroup(
-				$alternation,
-				true,
-				$parentGroup,
-				false,
-			);
-			$parentGroup = $group;
-		}
+			$walkResult = $walkResult->addCapturingGroup($group);
 
-		$inOptionalQuantification = false;
-		if ($ast->getId() === '#quantification') {
-			[$min, $max] = $this->getQuantificationRange($ast);
-
-			if ($min === 0) {
-				$inOptionalQuantification = true;
-			}
-
-			if ($max === null || $max > 1) {
-				$repeatedMoreThanOnce = true;
-			}
-		}
-
-		if ($ast->getId() === '#alternation') {
-			$astWalkResult = $astWalkResult->nextAlternationId();
-			$alternation = new RegexAlternation($astWalkResult->getAlternationId(), count($ast->getChildren()));
-		}
-
-		if ($ast->getId() === '#mark') {
-			return $astWalkResult->markVerb($ast->getChild(0)->getValueValue());
-		}
-
-		if (
-			$group instanceof RegexCapturingGroup &&
-			(!$captureOnlyNamed || $group->isNamed())
-		) {
-			$astWalkResult = $astWalkResult->addCapturingGroup($group);
-
-			if ($alternation !== null) {
-				$alternation->pushGroup($combinationIndex, $group);
-			}
-		}
-
-		foreach ($ast->getChildren() as $child) {
-			$astWalkResult = $this->walkRegexAst(
-				$child,
-				$alternation,
-				$combinationIndex,
-				$inOptionalQuantification,
-				$parentGroup,
-				$captureOnlyNamed,
-				$repeatedMoreThanOnce,
-				$patternModifiers,
-				$astWalkResult,
-			);
-
-			if ($ast->getId() !== '#alternation') {
+			if ($alternation === null) {
 				continue;
 			}
 
-			$combinationIndex++;
-		}
-
-		return $astWalkResult;
-	}
-
-	private function allowConstantTypes(
-		string $patternModifiers,
-		bool $repeatedMoreThanOnce,
-		RegexCapturingGroup|RegexNonCapturingGroup|null $parentGroup,
-	): bool
-	{
-		if (str_contains($patternModifiers, 'i')) {
-			// if caseless, we don't use constant types
-			// because it likely yields too many combinations
-			return false;
-		}
-
-		if ($repeatedMoreThanOnce) {
-			return false;
-		}
-
-		if ($parentGroup !== null && $parentGroup->resetsGroupCounter()) {
-			return false;
-		}
-
-		return true;
-	}
-
-	/** @return array{?int, ?int} */
-	private function getQuantificationRange(RegexNode $node): array
-	{
-		if ($node->getId() !== '#quantification') {
-			throw new ShouldNotHappenException();
-		}
-
-		$min = null;
-		$max = null;
-
-		$children = $node->getChildren();
-		$lastChild = $children[count($children) - 1];
-
-		// normalize away possessive and lazy quantifier-modifiers
-		$token = str_replace(['_possessive', '_lazy'], '', $lastChild->getValueToken());
-		$value = rtrim($lastChild->getValueValue(), '+?');
-
-		if ($token === 'n_to_m') {
-			if (sscanf($value, '{%d,%d}', $n, $m) !== 2 || !is_int($n) || !is_int($m)) {
-				throw new ShouldNotHappenException();
+			foreach ($placements as $other) {
+				$alternation->pushGroup($other->getBranch(), $group);
 			}
-
-			$min = $n;
-			$max = $m;
-		} elseif ($token === 'n_or_more') {
-			if (sscanf($value, '{%d,}', $n) !== 1 || !is_int($n)) {
-				throw new ShouldNotHappenException();
-			}
-
-			$min = $n;
-		} elseif ($token === 'exactly_n') {
-			if (sscanf($value, '{%d}', $n) !== 1 || !is_int($n)) {
-				throw new ShouldNotHappenException();
-			}
-
-			$min = $n;
-			$max = $n;
-		} elseif ($token === 'zero_or_one') {
-			$min = 0;
-			$max = 1;
-		} elseif ($token === 'zero_or_more') {
-			$min = 0;
-		} elseif ($token === 'one_or_more') {
-			$min = 1;
-		}
-
-		return [$min, $max];
-	}
-
-	private function createGroupType(RegexNode $group, bool $maybeConstant, string $patternModifiers): Type
-	{
-		$rootAlternation = $this->getRootAlternation($group);
-		if ($rootAlternation !== null) {
-			$types = [];
-			foreach ($rootAlternation->getChildren() as $alternative) {
-				$types[] = $this->createGroupType($alternative, $maybeConstant, $patternModifiers);
-			}
-
-			return TypeCombinator::union(...$types);
-		}
-
-		$walkResult = $this->walkGroupAst(
-			$group,
-			false,
-			$patternModifiers,
-			RegexGroupWalkResult::createEmpty(),
-		);
-
-		if ($maybeConstant && $walkResult->getOnlyLiterals() !== null && $walkResult->getOnlyLiterals() !== []) {
-			$result = [];
-			foreach ($walkResult->getOnlyLiterals() as $literal) {
-				$result[] = new ConstantStringType($literal);
-
-			}
-			return TypeCombinator::union(...$result);
-		}
-
-		if ($walkResult->isNumeric()->yes()) {
-			if ($walkResult->isNonFalsy()->yes()) {
-				return new IntersectionType([
-					new StringType(),
-					new AccessoryNumericStringType(),
-					new AccessoryNonFalsyStringType(),
-				]);
-			}
-
-			$result = new IntersectionType([new StringType(), new AccessoryNumericStringType()]);
-			if (!$walkResult->isNonEmpty()->yes()) {
-				return new UnionType([new ConstantStringType(''), $result]);
-			}
-			return $result;
-		} elseif ($walkResult->isNonFalsy()->yes()) {
-			return new IntersectionType([new StringType(), new AccessoryNonFalsyStringType()]);
-		} elseif ($walkResult->isNonEmpty()->yes()) {
-			return new IntersectionType([new StringType(), new AccessoryNonEmptyStringType()]);
-		}
-
-		return new StringType();
-	}
-
-	private function getRootAlternation(RegexNode $group): ?RegexNode
-	{
-		if (
-			$group->getId() === '#capturing'
-			&& count($group->getChildren()) === 1
-			&& $group->getChild(0)->getId() === '#alternation'
-		) {
-			return $group->getChild(0);
-		}
-
-		// 1st token within a named capturing group is a token holding the group-name
-		if (
-			$group->getId() === '#namedcapturing'
-			&& count($group->getChildren()) === 2
-			&& $group->getChild(1)->getId() === '#alternation'
-		) {
-			return $group->getChild(1);
-		}
-
-		return null;
-	}
-
-	private function walkGroupAst(
-		RegexNode $ast,
-		bool $inClass,
-		string $patternModifiers,
-		RegexGroupWalkResult $walkResult,
-	): RegexGroupWalkResult
-	{
-		if (in_array($ast->getId(), self::ASSERTIONS, true)) {
-			// assertions are zero-width, they do not add anything to the matched string
-			return $walkResult;
-		}
-
-		if (in_array($ast->getId(), self::CONDITIONS, true)) {
-			// which branch of a conditional subpattern matches is not known, it might match an empty string
-			return $walkResult->onlyLiterals(null)->numeric(TrinaryLogic::createNo());
-		}
-
-		$children = $ast->getChildren();
-		$quantifiedLiterals = null;
-
-		if (
-			$ast->getId() === '#concatenation'
-			&& count($children) > 0
-			&& !$walkResult->isInOptionalQuantification()
-		) {
-			$meaningfulTokens = 0;
-			foreach ($children as $child) {
-				$nonFalsy = false;
-				if ($this->isMaybeEmptyNode($child, $patternModifiers, $nonFalsy)) {
-					continue;
-				}
-
-				$meaningfulTokens++;
-
-				if (!$nonFalsy) {
-					continue;
-				}
-
-				// a single token non-falsy on its own
-				$walkResult = $walkResult->nonFalsy(TrinaryLogic::createYes());
-				break;
-			}
-
-			if ($meaningfulTokens > 0) {
-				$walkResult = $walkResult->nonEmpty(TrinaryLogic::createYes());
-
-				// two non-empty tokens concatenated results in a non-falsy string
-				if ($meaningfulTokens > 1) {
-					$walkResult = $walkResult->nonFalsy(TrinaryLogic::createYes());
-				}
-			}
-		} elseif ($ast->getId() === '#quantification') {
-			[$min, $max] = $this->getQuantificationRange($ast);
-
-			if ($min === 0) {
-				$walkResult = $walkResult->inOptionalQuantification(true);
-			}
-
-			// repeating an atom that might match an empty string might match an empty string too
-			$atomNonFalsy = false;
-			if (!$walkResult->isInOptionalQuantification() && !$this->isMaybeEmptyNode($children[0], $patternModifiers, $atomNonFalsy)) {
-				if ($min >= 1) {
-					$walkResult = $walkResult->nonEmpty(TrinaryLogic::createYes());
-				}
-				if ($min >= 2) {
-					$walkResult = $walkResult->nonFalsy(TrinaryLogic::createYes());
-				}
-			}
-
-			// "a?" yields 'a'|'', "a{1,2}" yields 'a'|'aa', etc. so a bounded quantification
-			// over constant literals can be combined with the surrounding literals
-			$quantifiedLiterals = $this->getQuantifiedLiterals($ast, $min, $max, $inClass, $patternModifiers, $walkResult);
-
-			$walkResult = $walkResult->onlyLiterals(null);
-		} elseif ($ast->getId() === '#class' && $walkResult->getOnlyLiterals() !== null) {
-			$inClass = true;
-
-			$newLiterals = [];
-			foreach ($children as $child) {
-				$oldLiterals = $walkResult->getOnlyLiterals();
-
-				$this->getLiteralValue($child, $oldLiterals, true, $patternModifiers, true);
-				foreach ($oldLiterals ?? [] as $oldLiteral) {
-					$newLiterals[] = $oldLiteral;
-				}
-			}
-			$walkResult = $walkResult->onlyLiterals($newLiterals);
-		} elseif ($ast->getId() === 'token') {
-			$onlyLiterals = $walkResult->getOnlyLiterals();
-			$literalValue = $this->getLiteralValue($ast, $onlyLiterals, !$inClass, $patternModifiers, false);
-			$walkResult = $walkResult->onlyLiterals($onlyLiterals);
-
-			if ($ast->getValueToken() === 'backreference') {
-				// matches what another group matched, the content is not known
-				$walkResult = $walkResult->numeric(TrinaryLogic::createNo());
-			}
-
-			if ($literalValue !== null) {
-				if (Strings::match($literalValue, '/^\d+$/') === null) {
-					$walkResult = $walkResult->numeric(TrinaryLogic::createNo());
-				} elseif ($walkResult->isNumeric()->maybe()) {
-					$walkResult = $walkResult->numeric(TrinaryLogic::createYes());
-				}
-
-				if (!$walkResult->isInOptionalQuantification() && $literalValue !== '') {
-					$walkResult = $walkResult->nonEmpty(TrinaryLogic::createYes());
-				}
-			}
-		} elseif (!in_array($ast->getId(), ['#capturing', '#namedcapturing', '#alternation'], true)) {
-			$walkResult = $walkResult->onlyLiterals(null);
-		}
-
-		if ($ast->getId() === '#alternation') {
-			if (count($children) === 0) {
-				return $walkResult;
-			}
-
-			// literals accumulated before the alternation form a common prefix that has to be
-			// combined with every branch, e.g. "a(b|c)" yields "ab"|"ac", not "b"|"c"
-			$prefixLiterals = $walkResult->getOnlyLiterals();
-			$newLiterals = [];
-			$nonEmpty = TrinaryLogic::createYes();
-			$nonFalsy = TrinaryLogic::createYes();
-			$numeric = TrinaryLogic::createYes();
-			foreach ($children as $child) {
-				$childResult = $this->walkGroupAst(
-					$child,
-					$inClass,
-					$patternModifiers,
-					$walkResult->onlyLiterals([])
-						->nonEmpty(TrinaryLogic::createMaybe())
-						->nonFalsy(TrinaryLogic::createMaybe())
-						->numeric(TrinaryLogic::createMaybe()),
-				);
-
-				$nonEmpty = $nonEmpty->and($childResult->isNonEmpty());
-				$nonFalsy = $nonFalsy->and($childResult->isNonFalsy());
-				$numeric = $numeric->and($childResult->isNumeric());
-
-				if ($newLiterals === null) {
-					continue;
-				}
-
-				$childLiterals = $childResult->getOnlyLiterals();
-				if ($prefixLiterals === null || $childLiterals === null || count($childLiterals) === 0) {
-					$newLiterals = null;
-					continue;
-				}
-
-				foreach ($childLiterals as $childLiteral) {
-					if ($prefixLiterals === []) {
-						$newLiterals[] = $childLiteral;
-					} else {
-						foreach ($prefixLiterals as $prefixLiteral) {
-							$newLiterals[] = $prefixLiteral . $childLiteral;
-						}
-					}
-				}
-			}
-
-			return $walkResult
-				->onlyLiterals($newLiterals)
-				->nonEmpty($walkResult->isNonEmpty()->or($nonEmpty))
-				->nonFalsy($walkResult->isNonFalsy()->or($nonFalsy))
-				->numeric($walkResult->isNumeric()->and($numeric));
-		}
-
-		// [^0-9] should not parse as numeric-string, and [^list-everything-but-numbers] is technically
-		// doable but really silly compared to just \d so we can safely assume the string is not numeric
-		// for negative classes
-		if ($ast->getId() === '#negativeclass') {
-			$walkResult = $walkResult->numeric(TrinaryLogic::createNo());
-		}
-
-		foreach ($children as $child) {
-			$walkResult = $this->walkGroupAst(
-				$child,
-				$inClass,
-				$patternModifiers,
-				$walkResult,
-			);
-		}
-
-		if ($ast->getId() === '#quantification') {
-			// the bottom walk above nulls the literals via the quantifier token,
-			// so restore the literals enumerated up-front for bounded quantifications
-			$walkResult = $walkResult->onlyLiterals($quantifiedLiterals);
 		}
 
 		return $walkResult;
 	}
 
 	/**
-	 * Enumerate the constant strings a bounded quantification (like "a?", "a{2}", "a{1,3}")
-	 * produces, combined with the literals accumulated so far. Returns null when the result
-	 * cannot be enumerated (unbounded quantifier, non-literal atom, or too many combinations).
+	 * The alternations whose capturing groups all capture in every branch: in such
+	 * a branch reset, every group is set whichever branch matches.
 	 *
-	 * @return array<string>|null
+	 * @return array<int, true> by alternation node id
 	 */
-	private function getQuantifiedLiterals(RegexNode $ast, ?int $min, ?int $max, bool $inClass, string $patternModifiers, RegexGroupWalkResult $walkResult): ?array
+	private function alternationsCapturingInEveryBranch(RegexTopology $topology): array
 	{
-		$prefixLiterals = $walkResult->getOnlyLiterals();
-		if ($prefixLiterals === null || $min === null || $max === null) {
-			return null;
-		}
-
-		// walk the quantified atom standalone (everything but the trailing quantifier token);
-		// the atom itself is not optional, so reset the flag to let concatenations accumulate literals
-		$atomChildren = $ast->getChildren();
-		array_pop($atomChildren);
-
-		$atomResult = $walkResult->onlyLiterals([])->inOptionalQuantification(false);
-		foreach ($atomChildren as $atomChild) {
-			$atomResult = $this->walkGroupAst($atomChild, $inClass, $patternModifiers, $atomResult);
-		}
-
-		$atomLiterals = $atomResult->getOnlyLiterals();
-		if ($atomLiterals === null) {
-			return null;
-		}
-
-		$repeatedLiterals = $this->repeatLiterals($atomLiterals, $min, $max);
-		if ($repeatedLiterals === null) {
-			return null;
-		}
-
-		$newLiterals = [];
-		foreach ($repeatedLiterals as $repeatedLiteral) {
-			if ($prefixLiterals === []) {
-				$newLiterals[] = $repeatedLiteral;
-			} else {
-				foreach ($prefixLiterals as $prefixLiteral) {
-					$newLiterals[] = $prefixLiteral . $repeatedLiteral;
-				}
-			}
-
-			if (count($newLiterals) > self::LITERALS_LIMIT) {
-				return null;
-			}
-		}
-
-		return $newLiterals;
-	}
-
-	/**
-	 * @param array<string> $literals
-	 * @return array<string>|null
-	 */
-	private function repeatLiterals(array $literals, int $min, int $max): ?array
-	{
-		$collected = [];
-		if ($min === 0) {
-			$collected[''] = '';
-		}
-
-		$current = [''];
-		for ($k = 1; $k <= $max; $k++) {
-			$next = [];
-			foreach ($current as $prefix) {
-				foreach ($literals as $literal) {
-					$next[] = $prefix . $literal;
-				}
-
-				if (count($next) > self::LITERALS_LIMIT) {
-					return null;
-				}
-			}
-			$current = $next;
-
-			if ($k < $min) {
+		$everyBranch = [];
+		foreach ($topology->getPlacementsByNumber() as $placements) {
+			$alternation = $placements[count($placements) - 1]->getAlternation();
+			if ($alternation === null) {
 				continue;
 			}
 
-			foreach ($current as $value) {
-				$collected[$value] = $value;
+			$branches = [];
+			foreach ($placements as $placement) {
+				$branches[] = $placement->getBranch();
 			}
 
-			if (count($collected) > self::LITERALS_LIMIT) {
-				return null;
-			}
+			$id = spl_object_id($alternation);
+			$inEveryBranch = count(array_unique($branches)) === $topology->getBranchCount($alternation);
+			$everyBranch[$id] = ($everyBranch[$id] ?? true) && $inEveryBranch;
 		}
 
-		return array_values($collected);
+		return array_filter($everyBranch);
 	}
 
-	private function isMaybeEmptyNode(RegexNode $node, string $patternModifiers, bool &$isNonFalsy): bool
+	/**
+	 * A pattern pinned at both ends tells what the whole subject holds, a final newline
+	 * included where $ lets one through; otherwise the subject contains the match,
+	 * so it is non-empty or non-falsy when the match is.
+	 */
+	private function subjectNarrowType(CaptureShape $shape): Type
 	{
-		if (in_array($node->getId(), self::ASSERTIONS, true) || in_array($node->getId(), self::CONDITIONS, true)) {
-			return true;
+		if ($shape->subject !== null) {
+			return $this->typeOf($shape->subject);
 		}
 
-		if ($node->getId() === '#quantification') {
-			[$min] = $this->getQuantificationRange($node);
+		if ($shape->whole->nonFalsy) {
+			return new IntersectionType([new StringType(), new AccessoryNonFalsyStringType()]);
+		}
 
-			if ($min > 0) {
-				$atomNonFalsy = false;
-				return $this->isMaybeEmptyNode($node->getChildren()[0], $patternModifiers, $atomNonFalsy);
+		if ($shape->whole->minLength >= 1) {
+			return new IntersectionType([new StringType(), new AccessoryNonEmptyStringType()]);
+		}
+
+		return new StringType();
+	}
+
+	/**
+	 * The analysis splits a pattern into cases whose union covers every match,
+	 * e.g. an optional group that runs with its nested groups or is skipped with them.
+	 *
+	 * @return list<array<int, bool>>
+	 */
+	private function cases(CaptureShape $shape): array
+	{
+		$cases = [];
+		foreach ($shape->cases as $case) {
+			$participations = [];
+			foreach ($case->groups as $groupShape) {
+				if ($groupShape->participation === Participation::Always()) {
+					$participations[$groupShape->number] = true;
+				} elseif ($groupShape->participation === Participation::Never()) {
+					$participations[$groupShape->number] = false;
+				}
 			}
+			$cases[] = $participations;
+		}
 
-			if ($min === 0) {
+		return $cases;
+	}
+
+	/**
+	 * Whether a group of an alternation may be unset even when its branch matches,
+	 * e.g. (c) in /(a)|b(*ACCEPT)(c)/. Each case of the shape covers the matches of one branch.
+	 */
+	private function mayBeUnsetInItsBranch(CaptureShape $shape, int $number): bool
+	{
+		foreach ($shape->cases as $case) {
+			if (isset($case->groups[$number]) && $case->groups[$number]->participation === Participation::MayBeUnset()) {
 				return true;
 			}
 		}
 
-		$literal = $this->getLiteralValue($node, $onlyLiterals, false, $patternModifiers, false);
-		if ($literal !== null) {
-			if ($literal !== '' && $literal !== '0') {
-				$isNonFalsy = true;
-			}
-			return $literal === '';
-		}
-
-		// an alternation is maybe-empty if any of its branches is maybe-empty,
-		// and non-falsy only if every branch is non-falsy
-		if ($node->getId() === '#alternation') {
-			$maybeEmpty = false;
-			$allNonFalsy = true;
-			foreach ($node->getChildren() as $child) {
-				$childNonFalsy = false;
-				if ($this->isMaybeEmptyNode($child, $patternModifiers, $childNonFalsy)) {
-					$maybeEmpty = true;
-				}
-				$allNonFalsy = $allNonFalsy && $childNonFalsy;
-			}
-
-			if ($allNonFalsy) {
-				$isNonFalsy = true;
-			}
-
-			return $maybeEmpty;
-		}
-
-		foreach ($node->getChildren() as $child) {
-			if (!$this->isMaybeEmptyNode($child, $patternModifiers, $isNonFalsy)) {
-				return false;
-			}
-		}
-
-		return true;
+		return false;
 	}
 
 	/**
-	 * @param array<string>|null $onlyLiterals
+	 * Numbers the capturing groups the way PCRE does, and records for each one
+	 * its parent group, the alternation above it and its branch in that alternation.
 	 */
-	private function getLiteralValue(RegexNode $node, ?array &$onlyLiterals, bool $appendLiterals, string $patternModifiers, bool $inCharacterClass): ?string
+	private function place(
+		NodeInterface $node,
+		RegexTopology $topology,
+		?int $parentId,
+		?NodeInterface $alternation,
+		int $branch,
+		bool $inOptionalQuantification = false,
+		bool $inRepetition = false,
+	): void
 	{
-		if ($node->getId() !== 'token') {
-			return null;
-		}
-
-		// token is the token name from grammar without the namespace so literal and class:literal are both called literal here
-		$token = $node->getValueToken();
-		$value = $node->getValueValue();
-
-		if (
-			in_array($token, [
-				'literal',
-				// literal "-" in front/back of a character class like '[-a-z]' or '[abc-]', not forming a range
-				'range',
-				// literal "[" or "]" inside character classes '[[]' or '[]]'
-				'class_', '_class',
-			], true)
-		) {
-			if (str_contains($patternModifiers, 'x') && trim($value) === '') {
-				return null;
-			}
-
-			$isEscaped = false;
-			if (strlen($value) > 1 && $value[0] === '\\') {
-				$value = substr($value, 1) ?: '';
-				$isEscaped = true;
-			}
-
-			if (
-				$appendLiterals
-				&& $onlyLiterals !== null
-			) {
-				if (
-					in_array($value, ['.'], true)
-					&& !($isEscaped || $inCharacterClass)
-				) {
-					$onlyLiterals = null;
-				} else {
-					if ($onlyLiterals === []) {
-						$onlyLiterals = [$value];
-					} else {
-						foreach ($onlyLiterals as &$literal) {
-							$literal .= $value;
-						}
-					}
+		if ($node instanceof AlternationNode) {
+			// a repeated alternation sets the groups of several branches: /(?:(a)|(b))+/ writes ['ab', 'a', 'b']
+			if ($inRepetition) {
+				foreach ($node->alternatives as $alternative) {
+					$this->place($alternative, $topology, $parentId, null, 0, false, true);
 				}
+
+				return;
 			}
 
-			return $value;
+			$topology->addAlternation($node, count($node->alternatives));
+			foreach ($node->alternatives as $i => $alternative) {
+				$this->place($alternative, $topology, $parentId, $node, $i);
+			}
+
+			return;
 		}
 
-		if (!in_array($token, ['capturing_name'], true)) {
-			$onlyLiterals = null;
+		if ($node instanceof DefineNode) {
+			// groups inside (?(DEFINE)...) are never set; an optional parent makes them optional
+			$topology->addPlacement(new RegexGroupPlacement(spl_object_id($node), null, $parentId, $alternation, $branch, true, false));
+			$this->place($node->content, $topology, spl_object_id($node), null, 0, false, $inRepetition);
+
+			return;
 		}
 
-		// character escape sequences, just return a fixed string
-		if (in_array($token, ['character', 'dynamic_character', 'character_type'], true)) {
-			if ($token === 'character_type' && $value === '\d') {
-				return '0';
-			}
+		if ($node instanceof ConditionalNode && !$inRepetition) {
+			// groups in a lookaround condition are numbered first; only one of the
+			// two branches runs, so they are read like an alternation
+			$topology->addAlternation($node, 2);
+			$this->place($node->condition, $topology, $parentId, null, 0);
+			$this->place($node->yes, $topology, $parentId, $node, 0);
+			$this->place($node->no, $topology, $parentId, $node, 1);
 
-			return $value;
+			return;
 		}
 
-		// [:digit:] and the like, more support coming later
-		if ($token === 'posix_class') {
-			if ($value === '[:digit:]') {
-				return '0';
+		// only the node directly under the quantifier is marked optional,
+		// nested groups get it through their parent
+		if ($node instanceof QuantifierNode) {
+			$bounds = QuantifierBounds::parse($node->quantifier);
+			$this->place(
+				$node->node,
+				$topology,
+				$parentId,
+				$alternation,
+				$branch,
+				$bounds !== null && $bounds->min === 0,
+				$inRepetition || $bounds === null || $bounds->max === null || $bounds->max > 1,
+			);
+
+			return;
+		}
+
+		if ($node instanceof GroupNode && $node->type === GroupType::BranchReset()) {
+			// (?|...): every branch numbers its groups from the same number,
+			// and the group after it continues after the longest branch
+			$topology->addPlacement(new RegexGroupPlacement(spl_object_id($node), null, $parentId, $alternation, $branch, $inOptionalQuantification, true));
+			$base = $topology->getNextNumber();
+			$end = $base;
+			$branchAlternation = $node->child instanceof AlternationNode && !$inRepetition ? $node->child : null;
+			if ($branchAlternation !== null) {
+				$topology->addAlternation($branchAlternation, count($branchAlternation->alternatives));
+				$branches = $branchAlternation->alternatives;
+			} else {
+				$branches = $node->child instanceof AlternationNode ? $node->child->alternatives : [$node->child];
 			}
-			if (in_array($value, ['[:alpha:]', '[:alnum:]', '[:upper:]', '[:lower:]', '[:word:]', '[:ascii:]', '[:print:]', '[:xdigit:]', '[:graph:]'], true)) {
-				return 'a';
+			foreach ($branches as $i => $branchNode) {
+				$topology->setNextNumber($base);
+				$this->place($branchNode, $topology, spl_object_id($node), $branchAlternation, $branchAlternation === null ? 0 : $i, $inOptionalQuantification, $inRepetition);
+				$end = max($end, $topology->getNextNumber());
 			}
-			if ($value === '[:blank:]') {
-				return " \t";
+			$topology->setNextNumber($end);
+
+			return;
+		}
+
+		if ($node instanceof GroupNode) {
+			$capturing = $node->type === GroupType::Capturing() || $node->type === GroupType::Named();
+			$topology->addPlacement(new RegexGroupPlacement(spl_object_id($node), $capturing ? $topology->takeNumber() : null, $parentId, $alternation, $branch, $inOptionalQuantification, false));
+			$parentId = spl_object_id($node);
+		}
+
+		foreach ($node->getChildren() as $child) {
+			$this->place($child, $topology, $parentId, $alternation, $branch, false, $inRepetition);
+		}
+	}
+
+	/**
+	 * A group that reads either constants or digits, like (a|\d), keeps each arm: 'a'|numeric-string.
+	 */
+	private function typeOf(CaptureGroupShape $shape): Type
+	{
+		if ($shape->arms === []) {
+			return $this->stringTypeOf($shape);
+		}
+
+		$types = [];
+		foreach ($shape->arms as $arm) {
+			$types[] = $this->stringTypeOf($arm);
+		}
+
+		return TypeCombinator::union(...$types);
+	}
+
+	private function stringTypeOf(CaptureGroupShape $shape): Type
+	{
+		if ($shape->values !== null && $shape->values !== []) {
+			$types = [];
+			foreach ($shape->values as $value) {
+				$types[] = new ConstantStringType($value);
 			}
-			if ($value === '[:cntrl:]') {
-				return "\x00\x1F";
-			}
-			if ($value === '[:space:]') {
-				return " \t\r\n\v\f";
-			}
-			if ($value === '[:punct:]') {
-				return '!"#$%&\'()*+,\-./:;<=>?@[\]^_`{|}~';
+
+			return TypeCombinator::union(...$types);
+		}
+
+		$accessories = [];
+		if ($shape->decimalInt) {
+			$accessories[] = new AccessoryDecimalIntegerStringType();
+		} elseif ($shape->digitsOnly) {
+			$accessories[] = new AccessoryNumericStringType();
+		}
+		if ($shape->nonFalsy) {
+			$accessories[] = new AccessoryNonFalsyStringType();
+		} elseif ($shape->minLength >= 1 && !$shape->digitsOnly && !$shape->decimalInt) {
+			$accessories[] = new AccessoryNonEmptyStringType();
+		}
+		// a case is kept when it alone holds: a value with no letter, digits among them, is both
+		if (!$shape->digitsOnly && !$shape->decimalInt && $shape->lowercase !== $shape->uppercase) {
+			$accessories[] = $shape->lowercase ? new AccessoryLowercaseStringType() : new AccessoryUppercaseStringType();
+		}
+
+		$type = $accessories === [] ? new StringType() : new IntersectionType([new StringType(), ...$accessories]);
+
+		// a run of digits of any length is digits or the empty string
+		if ($shape->digitsOnly && !$shape->decimalInt && $shape->minLength === 0) {
+			return new UnionType([new ConstantStringType(''), $type]);
+		}
+
+		return $type;
+	}
+
+	private function containsEscapeK(NodeInterface $node): bool
+	{
+		if ($node instanceof KeepNode) {
+			return true;
+		}
+
+		foreach ($node->getChildren() as $child) {
+			if ($this->containsEscapeK($child)) {
+				return true;
 			}
 		}
 
-		if (in_array($token, ['anchor', 'match_point_reset'], true)) {
-			return '';
-		}
-
-		return null;
+		return false;
 	}
 
 }

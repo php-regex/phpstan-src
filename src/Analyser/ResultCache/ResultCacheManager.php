@@ -28,6 +28,7 @@ use PHPStan\File\FileStatSignatures;
 use PHPStan\Internal\ArrayHelper;
 use PHPStan\Internal\ComposerHelper;
 use PHPStan\Php\ComposerPhpVersionFactory;
+use PHPStan\Php\PcreVersion;
 use PHPStan\Php\PhpVersion;
 use PHPStan\PhpDoc\StubFilesProvider;
 use PHPStan\Reflection\BetterReflection\SourceStubber\ExtensionVersionProvider;
@@ -231,6 +232,7 @@ final class ResultCacheManager
 		#[AutowiredParameter(ref: '%rootDir%')]
 		private string $anchorDirectory,
 		private PhpVersion $phpVersion,
+		private PcreVersion $pcreVersion,
 		private ComposerPhpVersionFactory $composerPhpVersionFactory,
 		private FileStatSignatures $fileStatSignatures,
 		private ValueDependencyCollector $valueDependencyCollector,
@@ -2803,6 +2805,9 @@ final class ResultCacheManager
 			// below come from its require section, which is not in composer.lock's content hash either,
 			// so a composer update need not move anything else in this metadata.
 			'phpVersionForAnalysis' => [$this->phpVersion->getVersionId(), $this->phpVersion->getSource()],
+			// regex shapes depend on the PCRE2 version, which can come from the pcreVersion
+			// parameter or from config.platform.lib-pcre in composer.json
+			'pcreVersionForAnalysis' => [$this->pcreVersion->getVersionId(), $this->pcreVersion->getSource()],
 			'composerPhpVersionRange' => [
 				$composerMinPhpVersion !== null ? $composerMinPhpVersion->getVersionId() : null,
 				$composerMaxPhpVersion !== null ? $composerMaxPhpVersion->getVersionId() : null,

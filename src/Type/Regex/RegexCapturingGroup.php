@@ -17,6 +17,7 @@ final class RegexCapturingGroup
 		private readonly bool $forceNonOptional = false,
 		private readonly ?Type $forceType = null,
 		private readonly bool $forceAlternationBranchMatched = false,
+		private readonly bool $neverMatched = false,
 	)
 	{
 	}
@@ -38,6 +39,7 @@ final class RegexCapturingGroup
 			true,
 			$this->forceType,
 			$this->forceAlternationBranchMatched,
+			$this->neverMatched,
 		);
 	}
 
@@ -57,6 +59,23 @@ final class RegexCapturingGroup
 			$this->forceNonOptional,
 			$this->forceType,
 			true,
+			$this->neverMatched,
+		);
+	}
+
+	public function forceNeverMatched(): self
+	{
+		return new self(
+			$this->id,
+			$this->name,
+			$this->alternation,
+			$this->inOptionalQuantification,
+			$this->parent,
+			$this->type,
+			$this->forceNonOptional,
+			$this->forceType,
+			$this->forceAlternationBranchMatched,
+			true,
 		);
 	}
 
@@ -72,6 +91,7 @@ final class RegexCapturingGroup
 			$this->forceNonOptional,
 			$this->forceType,
 			$this->forceAlternationBranchMatched,
+			$this->neverMatched,
 		);
 	}
 
@@ -87,6 +107,7 @@ final class RegexCapturingGroup
 			$this->forceNonOptional,
 			$this->forceType,
 			$this->forceAlternationBranchMatched,
+			$this->neverMatched,
 		);
 	}
 
@@ -186,6 +207,14 @@ final class RegexCapturingGroup
 	public function getName(): ?string
 	{
 		return $this->name;
+	}
+
+	/**
+	 * The engine never sets it, e.g. a group inside (?(DEFINE)...).
+	 */
+	public function isNeverMatched(): bool
+	{
+		return $this->neverMatched;
 	}
 
 	public function getType(): Type

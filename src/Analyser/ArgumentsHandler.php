@@ -625,6 +625,15 @@ final class ArgumentsHandler
 				}
 				$argContext = $context->enterDeep();
 				if (!$arg->unpack && $arg->value instanceof Expr\Array_) {
+					if ($parameter !== null) {
+						// an extension can type the closures of an array literal by describing the whole array
+						$overwritingParameterType = $this->getParameterTypeFromParameterClosureTypeExtension($callLike, $calleeReflection, $parameter, $scopeToPass);
+						if ($overwritingParameterType !== null) {
+							$parameterType = $overwritingParameterType;
+							$parameterNativeType = $this->getParameterTypeFromParameterClosureTypeExtension($callLike, $calleeReflection, $parameter, $scopeToPass->doNotTreatPhpDocTypesAsCertain()) ?? $parameterNativeType;
+							$passedToTypeResolver = null;
+						}
+					}
 					$argContext = $argContext->enterPassedToType($parameterType, $parameterNativeType);
 					if ($passedToTypeResolver !== null) {
 						$argContext = $argContext->enterPassedToTypeResolver($passedToTypeResolver);

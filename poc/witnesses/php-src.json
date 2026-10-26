@@ -1,0 +1,32 @@
+[
+    {
+        "pattern": "/.*\\p{N}/",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "/\\G\\w/u",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    },
+    {
+        "pattern": "~\\A.~",
+        "call": "match:null",
+        "subject": "MA==",
+        "engine": "YToxOntpOjA7czoxOiIwIjt9",
+        "reason": "falsy",
+        "key": 0,
+        "phplrt": "array{non-falsy-string}",
+        "phpregex": "array{non-empty-string}"
+    }
+]

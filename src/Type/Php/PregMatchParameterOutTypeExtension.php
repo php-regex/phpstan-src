@@ -51,7 +51,7 @@ final class PregMatchParameterOutTypeExtension implements FunctionParameterOutTy
 		}
 
 		if ($functionReflection->getName() === 'preg_match') {
-			$matchedType = $this->regexShapeMatcher->matchExpr($patternArg->value, $flagsType, TrinaryLogic::createYes(), $scope);
+			$matchedType = $this->regexShapeMatcher->matchExpr($patternArg->value, $flagsType, TrinaryLogic::createYes(), $scope, $this->regexShapeMatcher->matchesFromOffset($funcCall, $scope));
 			if ($matchedType === null) {
 				return null;
 			}

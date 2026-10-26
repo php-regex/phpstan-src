@@ -4,7 +4,7 @@
     "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
     "This file is @generated automatically"
   ],
-  "content-hash": "b4aec40b93330400ac2e7427e2d76f11",
+  "content-hash": "c90fa93a149b20edc0d2f20b4913d73c",
   "packages": [
     {
       "name": "clue/ndjson-react",
@@ -1536,74 +1536,76 @@
       "time": "2025-12-09T08:32:19+00:00"
     },
     {
-      "name": "ondrejmirtes/phplrt-runtime",
-      "version": "4.2.4.1",
+      "name": "php-regex/regex-parser-php74",
+      "version": "2.x-dev",
       "source": {
         "type": "git",
-        "url": "https://github.com/ondrejmirtes/phplrt-runtime.git",
-        "reference": "0a9b3058a8f857f5e2428a5b5040e29bce7017a0"
+        "url": "https://github.com/php-regex/regex-parser-php74.git",
+        "reference": "6eb39faf0f26bd40e3fd0ba6112fd3e0a37bd7cf"
       },
       "dist": {
         "type": "zip",
-        "url": "https://api.github.com/repos/ondrejmirtes/phplrt-runtime/zipball/0a9b3058a8f857f5e2428a5b5040e29bce7017a0",
-        "reference": "0a9b3058a8f857f5e2428a5b5040e29bce7017a0",
+        "url": "https://api.github.com/repos/php-regex/regex-parser-php74/zipball/6eb39faf0f26bd40e3fd0ba6112fd3e0a37bd7cf",
+        "reference": "6eb39faf0f26bd40e3fd0ba6112fd3e0a37bd7cf",
         "shasum": ""
       },
       "require": {
-        "ext-json": "*",
-        "ext-pcre": "*",
         "php": "^7.4 || ^8.0",
-        "symfony/polyfill-php80": "^1.23",
-        "symfony/polyfill-php81": "^1.27"
+        "symfony/polyfill-mbstring": "^1.31",
+        "symfony/polyfill-php80": "^1.31",
+        "symfony/polyfill-php81": "^1.31"
       },
-      "replace": {
-        "phplrt/lexer": "self.version",
-        "phplrt/lexer-contracts": "self.version",
-        "phplrt/parser": "self.version",
-        "phplrt/parser-contracts": "self.version",
-        "phplrt/position": "self.version",
-        "phplrt/position-contracts": "self.version",
-        "phplrt/position-factory-contracts": "self.version",
-        "phplrt/runtime": "self.version",
-        "phplrt/source": "self.version",
-        "phplrt/source-contracts": "self.version",
-        "phplrt/source-factory-contracts": "self.version"
+      "suggest": {
+        "ext-intl": "To resolve \\N{name} escapes by Unicode name.",
+        "psr/cache": "To share the AST cache through a PSR-6 pool.",
+        "psr/simple-cache": "To share the AST cache through a PSR-16 cache."
       },
+      "default-branch": true,
       "type": "library",
       "extra": {
         "branch-alias": {
-          "dev-main": "4.2.x-dev"
+          "dev-2.x": "2.x-dev"
         }
       },
       "autoload": {
         "psr-4": {
-          "Phplrt\\Lexer\\": "src/Lexer",
-          "Phplrt\\Parser\\": "src/Parser",
-          "Phplrt\\Source\\": "src/Source",
-          "Phplrt\\Position\\": "src/Position",
-          "Phplrt\\Contracts\\Lexer\\": "src/Contracts/Lexer",
-          "Phplrt\\Contracts\\Parser\\": "src/Contracts/Parser",
-          "Phplrt\\Contracts\\Source\\": "src/Contracts/Source",
-          "Phplrt\\Contracts\\Position\\": "src/Contracts/Position"
+          "PHPRegex\\Parser\\": "src/"
         }
       },
-      "notification-url": "https://packagist.org/downloads/",
       "license": [
         "MIT"
       ],
       "authors": [
         {
-          "name": "Kirill Nesmeyanov",
-          "email": "nesk@xakep.ru"
+          "name": "Younes ENNAJI",
+          "email": "younes.ennaji.pro@gmail.com",
+          "homepage": "https://www.linkedin.com/in/yoeunes/",
+          "role": "Developer"
         }
       ],
-      "description": "phplrt runtime (lexer, parser, source, position and their contracts) downgraded to PHP 7.4",
-      "homepage": "https://github.com/phplrt/phplrt",
+      "description": "The PHPRegex parser built to run on hosts PHP 7.4-8.0. On PHP 8.1+, install php-regex/regex-parser instead.",
+      "homepage": "https://github.com/php-regex/regex-parser-php74",
+      "keywords": [
+        "ast",
+        "lexer",
+        "parser",
+        "pcre",
+        "pcre2",
+        "regex",
+        "validation"
+      ],
       "support": {
-        "issues": "https://github.com/ondrejmirtes/phplrt-runtime/issues",
-        "source": "https://github.com/ondrejmirtes/phplrt-runtime/tree/4.2.4.1"
+        "issues": "https://github.com/php-regex/regex-parser-php74/issues",
+        "source": "https://github.com/php-regex/regex-parser-php74",
+        "docs": "https://php-regex.com/reference/api/"
       },
-      "time": "2026-10-26T17:32:05+00:00"
+      "funding": [
+        {
+          "type": "github",
+          "url": "https://github.com/sponsors/yoeunes"
+        }
+      ],
+      "time": "2026-10-31T13:29:51+00:00"
     },
     {
       "name": "phpstan/php-8-stubs",
@@ -5936,7 +5938,8 @@
   "aliases": [],
   "minimum-stability": "dev",
   "stability-flags": {
-    "jetbrains/phpstorm-stubs": 20
+    "jetbrains/phpstorm-stubs": 20,
+    "php-regex/regex-parser-php74": 20
   },
   "prefer-stable": true,
   "prefer-lowest": false,
