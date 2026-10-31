@@ -2418,6 +2418,26 @@ private:
 			bool isArray = false;
 			if (UNEXPECTED(!isA(value, PT_CLASS_ARRAY_EXPR, isArray))) return false;
 			if (isArray) {
+				if (a.parameter != NULL) {
+					// an extension can type the closures of an array literal by describing the whole array
+					zv::Val overwritingParameterType = getParameterTypeFromParameterClosureTypeExtension(w.callLike, w.calleeReflection, a.parameter, a.scopeToPass.raw());
+					if (UNEXPECTED(overwritingParameterType.isUndef())) return false;
+					if (!overwritingParameterType.isNull()) {
+						a.parameterType = std::move(overwritingParameterType);
+						if (UNEXPECTED(Z_TYPE_P(a.scopeToPass.raw()) != IS_OBJECT)) {
+							zend_throw_error(NULL, "Call to a member function doNotTreatPhpDocTypesAsCertain() on %s", zend_zval_value_name(a.scopeToPass.raw()));
+							return false;
+						}
+						zv::Val nativeScope = pt_mutating_scope_do_not_treat_phpdoc_types_as_certain(Z_OBJ_P(a.scopeToPass.raw()));
+						if (UNEXPECTED(nativeScope.isUndef())) return false;
+						zv::Val overwritingParameterNativeType = getParameterTypeFromParameterClosureTypeExtension(w.callLike, w.calleeReflection, a.parameter, nativeScope.raw());
+						if (UNEXPECTED(overwritingParameterNativeType.isUndef())) return false;
+						if (!overwritingParameterNativeType.isNull()) {
+							a.parameterNativeType = std::move(overwritingParameterNativeType);
+						}
+						a.passedToTypeResolver.release();
+					}
+				}
 				zv::Val passed = pt_expression_context_enter_passed_to_type(argContext.raw(), a.parameterType.isUndef() ? NULL : a.parameterType.raw(), a.parameterNativeType.isUndef() ? NULL : a.parameterNativeType.raw());
 				if (UNEXPECTED(passed.isUndef())) return false;
 				argContext = std::move(passed);

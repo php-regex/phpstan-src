@@ -2,17 +2,21 @@
 
 namespace PHPStan\Type\Php;
 
+use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\FuncCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Reflection\FunctionReflection;
 use PHPStan\Reflection\ParametersAcceptorSelector;
 use PHPStan\ShouldNotHappenException;
+use PHPStan\TrinaryLogic;
 use PHPStan\Type\Accessory\AccessoryLowercaseStringType;
 use PHPStan\Type\Accessory\AccessoryNonEmptyStringType;
 use PHPStan\Type\Accessory\AccessoryNonFalsyStringType;
 use PHPStan\Type\Accessory\AccessoryUppercaseStringType;
 use PHPStan\Type\ArrayType;
+use PHPStan\Type\Constant\ConstantIntegerType;
+use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\DynamicFunctionReturnTypeExtension;
 use PHPStan\Type\IntersectionType;
 use PHPStan\Type\MixedType;
@@ -23,6 +27,10 @@ use PHPStan\Type\TypeUtils;
 use function array_key_exists;
 use function count;
 use function in_array;
+use function preg_match_all;
+use function strlen;
+use const PREG_SET_ORDER;
+use const PREG_UNMATCHED_AS_NULL;
 
 #[AutowiredService]
 final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctionReturnTypeExtension
@@ -45,6 +53,12 @@ final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctio
 		'substr_replace' => 1,
 		'strtr' => 2,
 	];
+
+	public function __construct(
+		private RegexArrayShapeMatcher $regexShapeMatcher,
+	)
+	{
+	}
 
 	public function isFunctionSupported(FunctionReflection $functionReflection): bool
 	{
@@ -108,6 +122,11 @@ final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctio
 			}
 		}
 
+		$substitutedReplaceType = null;
+		if ($replaceArgumentType !== null && $functionReflection->getName() === 'preg_replace') {
+			$substitutedReplaceType = $this->getPregReplacementType($args[0]->value, $replaceArgumentType, $scope);
+		}
+
 		$result = [];
 
 		if ($subjectArgumentType->isString()->yes()) {
@@ -116,7 +135,7 @@ final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctio
 			$stringArgumentType = TypeCombinator::intersect(new StringType(), $subjectArgumentType);
 		}
 		if ($stringArgumentType->isString()->yes()) {
-			$result[] = $this->getReplaceType($stringArgumentType, $replaceArgumentType);
+			$result[] = $this->getReplaceType($stringArgumentType, $replaceArgumentType, $substitutedReplaceType);
 		}
 
 		if ($subjectArgumentType->isArray()->yes()) {
@@ -132,7 +151,7 @@ final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctio
 			);
 
 			$mapped = $arrayArgumentType->mapValueType(
-				fn (Type $value): Type => $this->getReplaceType($value, $replaceArgumentType),
+				fn (Type $value): Type => $this->getReplaceType($value, $replaceArgumentType, $substitutedReplaceType),
 			);
 			if ($keyShouldBeOptional) {
 				$mapped = $mapped->makeAllArrayKeysOptional();
@@ -147,16 +166,18 @@ final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctio
 	private function getReplaceType(
 		Type $subjectArgumentType,
 		?Type $replaceArgumentType,
+		?Type $substitutedReplaceType,
 	): Type
 	{
 		if ($replaceArgumentType === null) {
 			return new StringType();
 		}
 
+		$substitutedReplaceType ??= $replaceArgumentType;
 		$accessories = [];
-		if ($subjectArgumentType->isNonFalsyString()->yes() && $replaceArgumentType->isNonFalsyString()->yes()) {
+		if ($subjectArgumentType->isNonFalsyString()->yes() && $substitutedReplaceType->isNonFalsyString()->yes()) {
 			$accessories[] = new AccessoryNonFalsyStringType();
-		} elseif ($subjectArgumentType->isNonEmptyString()->yes() && $replaceArgumentType->isNonEmptyString()->yes()) {
+		} elseif ($subjectArgumentType->isNonEmptyString()->yes() && $substitutedReplaceType->isNonEmptyString()->yes()) {
 			$accessories[] = new AccessoryNonEmptyStringType();
 		}
 
@@ -174,6 +195,77 @@ final class ReplaceFunctionsDynamicReturnTypeExtension implements DynamicFunctio
 		}
 
 		return new StringType();
+	}
+
+	/**
+	 * The text a preg_replace() replacement writes once its references to the groups are
+	 * substituted - a reference to a group that can be unset or empty writes nothing.
+	 */
+	private function getPregReplacementType(Expr $patternExpr, Type $replaceType, Scope $scope): Type
+	{
+		$constantStrings = $replaceType->getConstantStrings();
+		if (count($constantStrings) === 0) {
+			return new StringType();
+		}
+
+		$matchesType = $this->regexShapeMatcher->matchExpr($patternExpr, null, TrinaryLogic::createYes(), $scope, true);
+		$types = [];
+		foreach ($constantStrings as $constantString) {
+			preg_match_all('/\$\{(\d\d?)\}|[\\\\$](\d\d?)|\\\\([\\\\$])|(.)/s', $constantString->getValue(), $tokens, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL);
+			$text = '';
+			$referenceTypes = [];
+			foreach ($tokens as [, $bracedReference, $reference, $escaped, $char]) {
+				if ($bracedReference === null && $reference === null) {
+					$text .= $escaped ?? $char;
+					continue;
+				}
+
+				$referenceTypes[] = $this->getGroupType($matchesType, (int) ($bracedReference ?? $reference));
+			}
+
+			$minLength = strlen($text);
+			$isNonFalsy = $text !== '' && $text !== '0';
+			foreach ($referenceTypes as $referenceType) {
+				if ($referenceType->isNonFalsyString()->yes()) {
+					$isNonFalsy = true;
+				}
+				if (!$referenceType->isNonEmptyString()->yes()) {
+					continue;
+				}
+
+				$minLength++;
+			}
+
+			if ($isNonFalsy || $minLength >= 2) {
+				$types[] = new IntersectionType([new StringType(), new AccessoryNonFalsyStringType()]);
+			} elseif ($minLength === 1) {
+				$types[] = new IntersectionType([new StringType(), new AccessoryNonEmptyStringType()]);
+			} else {
+				$types[] = new StringType();
+			}
+		}
+
+		return TypeCombinator::union(...$types);
+	}
+
+	private function getGroupType(?Type $matchesType, int $group): Type
+	{
+		if ($matchesType === null) {
+			return new StringType();
+		}
+
+		$offsetType = new ConstantIntegerType($group);
+		$hasOffset = $matchesType->hasOffsetValueType($offsetType);
+		if ($hasOffset->no()) {
+			return new ConstantStringType('');
+		}
+
+		$groupType = $matchesType->getOffsetValueType($offsetType);
+		if ($hasOffset->yes()) {
+			return $groupType;
+		}
+
+		return TypeCombinator::union($groupType, new ConstantStringType(''));
 	}
 
 	private function getSubjectType(

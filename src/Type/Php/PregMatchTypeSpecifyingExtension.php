@@ -13,7 +13,11 @@ use PHPStan\Analyser\TypeSpecifierContext;
 use PHPStan\DependencyInjection\AutowiredService;
 use PHPStan\Reflection\FunctionReflection;
 use PHPStan\TrinaryLogic;
+use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\FunctionTypeSpecifyingExtension;
+use PHPStan\Type\NeverType;
+use PHPStan\Type\StringType;
+use PHPStan\Type\TypeCombinator;
 use function in_array;
 use function strtolower;
 
@@ -55,14 +59,25 @@ final class PregMatchTypeSpecifyingExtension implements FunctionTypeSpecifyingEx
 		if (
 			$subjectArg !== null
 			&& $context->true()
-			&& $scope->getType($subjectArg->value)->isString()->yes()
+			&& !$scope->getType($subjectArg->value)->isString()->no()
 			&& !$this->isSubExprOfMatchesArg($subjectArg->value, $matchesArg !== null ? $matchesArg->value : null)
 		) {
-			$subjectType = $this->regexShapeMatcher->matchSubjectExpr($patternArg->value, $scope);
-			if ($subjectType !== null) {
+			$narrowType = $this->regexShapeMatcher->matchSubjectExpr($patternArg->value, $scope);
+			if ($narrowType !== null) {
+				// non-string parts of the subject are kept: an int subject is matched as its digits
+				$subjectType = $scope->getType($subjectArg->value);
+				$besideString = TypeCombinator::remove($subjectType, new StringType());
+				// null is matched as '', so it is removed when the pattern cannot match ''
+				if (TypeCombinator::intersect($narrowType, new ConstantStringType('')) instanceof NeverType) {
+					$besideString = TypeCombinator::removeNull($besideString);
+				}
+				$narrowType = TypeCombinator::intersect(
+					$subjectType,
+					TypeCombinator::union($narrowType, $besideString),
+				);
 				$subjectTypes = $this->typeSpecifier->create(
 					$subjectArg->value,
-					$subjectType,
+					$narrowType,
 					$context,
 					$scope,
 				)->setRootExpr($node);
@@ -87,7 +102,7 @@ final class PregMatchTypeSpecifyingExtension implements FunctionTypeSpecifyingEx
 		}
 
 		if ($functionReflection->getName() === 'preg_match') {
-			$matchedType = $this->regexShapeMatcher->matchExpr($patternArg->value, $flagsType, $wasMatched, $scope);
+			$matchedType = $this->regexShapeMatcher->matchExpr($patternArg->value, $flagsType, $wasMatched, $scope, $this->regexShapeMatcher->matchesFromOffset($node, $scope));
 		} else {
 			$matchedType = $this->regexShapeMatcher->matchAllExpr($patternArg->value, $flagsType, $wasMatched, $scope);
 		}

@@ -66,6 +66,7 @@ parameters:
 		unusedVariable: false
 		unusedParameters: false
 		reuseCollectedDataRuleErrors: false
+		checkRegexPatternForAnalysedPhp: false
 	fileExtensions:
 		- php
 	checkAdvancedIsset: false
@@ -121,6 +122,7 @@ parameters:
 		buffer: 134217728 # 128 MB
 		loadLimit: 1.0
 	phpVersion: null
+	pcreVersion: null
 	polluteScopeWithLoopInitialAssignments: true
 	polluteScopeWithAlwaysIterableForeach: true
 	polluteScopeWithBlock: true

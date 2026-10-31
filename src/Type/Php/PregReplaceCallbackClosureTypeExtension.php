@@ -46,7 +46,7 @@ final class PregReplaceCallbackClosureTypeExtension implements FunctionParameter
 			$flagsType = $scope->getType($flagsArg->value);
 		}
 
-		$matchesType = $this->regexShapeMatcher->matchExpr($patternArg->value, $flagsType, TrinaryLogic::createYes(), $scope);
+		$matchesType = $this->regexShapeMatcher->matchExpr($patternArg->value, $flagsType, TrinaryLogic::createYes(), $scope, true);
 		if ($matchesType === null) {
 			return null;
 		}

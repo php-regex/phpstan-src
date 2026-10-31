@@ -8,9 +8,9 @@ use function PHPStan\Testing\assertType;
 
 function () {
 	preg_match('/^(.)$/', '', $matches) || preg_match('/^(.)(.)(.)$/', '', $matches);
-	assertType('array{}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string}', $matches);
+	assertType('array{}|array{non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string}', $matches);
 	if (count($matches) === 2) {
-		assertType('array{non-falsy-string, non-empty-string}', $matches);
+		assertType('array{non-empty-string, non-empty-string}', $matches);
 		return;
 	}
 	assertType('array{}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string}', $matches);
@@ -86,9 +86,9 @@ class Bug14314Test
 // Test: sequential count checks preserve narrowing correctly
 function () {
 	preg_match('/^(.)$/', '', $m) || preg_match('/^(.)(.)(.)$/', '', $m) || preg_match('/^(.)(.)(.)(.)(.)(.)$/', '', $m);
-	assertType('array{}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string}', $m);
+	assertType('array{}|array{non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string}', $m);
 	if (count($m) === 2) {
-		assertType('array{non-falsy-string, non-empty-string}', $m);
+		assertType('array{non-empty-string, non-empty-string}', $m);
 		return;
 	}
 	assertType('array{}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string, non-empty-string}|array{non-falsy-string, non-empty-string, non-empty-string, non-empty-string}', $m);
@@ -108,7 +108,7 @@ function (int $x) {
 	if ($x > 0) {
 		assertType('int<1, max>', $x);
 		if (count($matches) === 2) {
-			assertType('array{non-falsy-string, non-empty-string}', $matches);
+			assertType('array{non-empty-string, non-empty-string}', $matches);
 			assertType('int<1, max>', $x);
 			return;
 		}

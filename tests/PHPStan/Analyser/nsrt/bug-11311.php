@@ -14,9 +14,9 @@ function doFoo(string $s) {
 
 function doUnmatchedAsNull(string $s): void {
 	if (preg_match('/(foo)?(bar)?(baz)?/', $s, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType("array{string, 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
+		assertType("array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
 	}
-	assertType("array{}|array{string, 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
+	assertType("array{}|array{''|'bar'|'barbaz'|'baz'|'foo'|'foobar'|'foobarbaz'|'foobaz', 'foo'|null, 'bar'|null, 'baz'|null}", $matches);
 }
 
 // see https://3v4l.org/VeDob
@@ -63,7 +63,7 @@ function bug11331c(string $url):void {
 	([^/]+?)
 	(?:\.git|/)?
 $}x', $url, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType('array{non-falsy-string, non-empty-string|null, non-empty-string|null, non-empty-string, non-empty-string}', $matches);
+		assertType('array{non-falsy-string, non-empty-string, null, non-empty-string, non-empty-string}|array{non-falsy-string, null, non-empty-string, non-empty-string, non-empty-string}', $matches);
 	}
 }
 
@@ -85,56 +85,56 @@ function (string $size): void {
 	if (preg_match('/ab(\d){2,4}xx([0-9])?e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, numeric-string, numeric-string|null}', $matches);
+	assertType('array{lowercase-string&non-falsy-string, numeric-string, \'0\'|\'1\'|\'2\'|\'3\'|\'4\'|\'5\'|\'6\'|\'7\'|\'8\'|\'9\'|null}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/a(\dAB){2}b(\d){2,4}([1-5])([1-5a-z])e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, non-falsy-string, numeric-string, numeric-string, non-empty-string}', $matches);
+	assertType('array{non-falsy-string, non-falsy-string&uppercase-string, numeric-string, \'1\'|\'2\'|\'3\'|\'4\'|\'5\', \'1\'|\'2\'|\'3\'|\'4\'|\'5\'|\'a\'|\'b\'|\'c\'|\'d\'|\'e\'|\'f\'|\'g\'|\'h\'|\'i\'|\'j\'|\'k\'|\'l\'|\'m\'|\'n\'|\'o\'|\'p\'|\'q\'|\'r\'|\'s\'|\'t\'|\'u\'|\'v\'|\'w\'|\'x\'|\'y\'|\'z\'}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/ab(ab(\d)){2,4}xx([0-9][a-c])?e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, non-falsy-string, numeric-string, non-falsy-string|null}', $matches);
+	assertType('array{lowercase-string&non-falsy-string, lowercase-string&non-falsy-string, numeric-string, \'0a\'|\'0b\'|\'0c\'|\'1a\'|\'1b\'|\'1c\'|\'2a\'|\'2b\'|\'2c\'|\'3a\'|\'3b\'|\'3c\'|\'4a\'|\'4b\'|\'4c\'|\'5a\'|\'5b\'|\'5c\'|\'6a\'|\'6b\'|\'6c\'|\'7a\'|\'7b\'|\'7c\'|\'8a\'|\'8b\'|\'8c\'|\'9a\'|\'9b\'|\'9c\'|null}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/ab(\d+)e(\d?)/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType("array{non-falsy-string, numeric-string, ''|numeric-string}", $matches);
+	assertType('array{lowercase-string&non-falsy-string, numeric-string, \'\'|numeric-string}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/ab(?P<num>\d+)e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{0: non-falsy-string, num: numeric-string, 1: numeric-string}', $matches);
+	assertType('array{0: lowercase-string&non-falsy-string, num: numeric-string, 1: numeric-string}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/ab(\d\d)/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, non-falsy-string&numeric-string}', $matches);
+	assertType('array{lowercase-string&non-falsy-string, non-falsy-string&numeric-string}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/ab(\d+\s)e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, non-falsy-string}', $matches);
+	assertType('array{lowercase-string&non-falsy-string, non-falsy-string}', $matches);
 };
 
 function (string $size): void {
 	if (preg_match('/ab(\s)e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, non-empty-string}', $matches);
+	assertType('array{lowercase-string&non-falsy-string, non-falsy-string}', $matches);
 };
 
 function (string $size): void {
@@ -162,18 +162,18 @@ function (string $size): void {
 	if (preg_match('/ab(\d+\d?)e?/', $size, $matches, PREG_UNMATCHED_AS_NULL) !== 1) {
 		throw new InvalidArgumentException(sprintf('Invalid size "%s"', $size));
 	}
-	assertType('array{non-falsy-string, numeric-string}', $matches);
+	assertType('array{lowercase-string&non-falsy-string, numeric-string}', $matches);
 };
 
 function (string $s): void {
 	if (preg_match('/Price: ([2-5])/i', $s, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType('array{non-falsy-string, numeric-string}', $matches);
+		assertType('array{non-falsy-string, \'2\'|\'3\'|\'4\'|\'5\'}', $matches);
 	}
 };
 
 function (string $s): void {
 	if (preg_match('/Price: ([2-5A-Z])/i', $s, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType('array{non-falsy-string, non-empty-string}', $matches);
+		assertType('array{non-falsy-string, non-falsy-string}', $matches);
 	}
 };
 
@@ -191,36 +191,36 @@ function (string $s): void {
 
 function (string $s): void {
 	preg_match('/%a(\d*)/', $s, $matches, PREG_UNMATCHED_AS_NULL);
-	assertType("array{}|array{non-falsy-string, ''|numeric-string}", $matches);
+	assertType('array{}|array{lowercase-string&non-falsy-string, \'\'|numeric-string}', $matches);
 };
 
 function (string $s): void {
 	preg_match('/%a(\d*)?/', $s, $matches, PREG_UNMATCHED_AS_NULL);
-	assertType("array{}|array{non-falsy-string, ''|numeric-string|null}", $matches);
+	assertType('array{}|array{lowercase-string&non-falsy-string, \'\'|numeric-string|null}', $matches);
 };
 
 function (string $s): void {
 	if (preg_match('~a|(\d)|(\s)~', $s, $matches, PREG_UNMATCHED_AS_NULL)) {
-		assertType("array{non-empty-string, numeric-string|null, non-empty-string|null}", $matches);
+		assertType('array{non-falsy-string|numeric-string, numeric-string|null, non-falsy-string|null}', $matches);
 	} else {
 		assertType("array{}", $matches);
 	}
-	assertType("array{}|array{non-empty-string, numeric-string|null, non-empty-string|null}", $matches);
+	assertType('array{}|array{non-falsy-string|numeric-string, numeric-string|null, non-falsy-string|null}', $matches);
 };
 
 function (string $s): void {
 	if (preg_match('~a|(\d)|(\s)~', $s, $matches, PREG_UNMATCHED_AS_NULL|PREG_OFFSET_CAPTURE) === 1) {
-		assertType("array{array{non-empty-string|null, int<-1, max>}, array{numeric-string|null, int<-1, max>}, array{non-empty-string|null, int<-1, max>}}", $matches);
+		assertType('array{array{non-falsy-string|numeric-string, int<0, max>}, array{numeric-string|null, int<-1, max>}, array{non-falsy-string|null, int<-1, max>}}', $matches);
 	}
 };
 
 function (string $s): void {
 	if (preg_match('~a|((u)x)|((v)y)~', $s, $matches, PREG_UNMATCHED_AS_NULL) === 1) {
-		assertType("array{non-empty-string, 'ux'|null, 'u'|null, 'vy'|null, 'v'|null}", $matches);
+		assertType("array{'a'|'ux'|'vy', 'ux'|null, 'u'|null, 'vy'|null, 'v'|null}", $matches);
 	}
 };
 
 function (string $s): void {
 	preg_match('~a|(\d)|(\s)~', $s, $matches, PREG_UNMATCHED_AS_NULL);
-	assertType("array{}|array{non-empty-string, numeric-string|null, non-empty-string|null}", $matches);
+	assertType('array{}|array{non-falsy-string|numeric-string, numeric-string|null, non-falsy-string|null}', $matches);
 };

@@ -286,9 +286,20 @@ function preg_match_all($pattern, $subject, &$matches = [], int $flags = 1, int 
  */
 function preg_match($pattern, $subject, &$matches = [], int $flags = 0, int $offset = 0) {}
 
+// $flags: 256 is PREG_OFFSET_CAPTURE, 512 is PREG_UNMATCHED_AS_NULL, 768 both
 /**
  * @param string|string[] $pattern
- * @param callable(string[]):string $callback
+ * @param (
+ *             $flags is 256
+ *             ? callable(array<array{string, 0|positive-int}|array{'', -1}>):string
+ *             : ($flags is 512
+ *                 ? callable(array<string|null>):string
+ *                 : ($flags is 768
+ *                     ? callable(array<array{string, 0|positive-int}|array{null, -1}>):string
+ *                     : callable(string[]):string
+ *                     )
+ *                 )
+ *             ) $callback
  * @param string|array<string|int|float> $subject
  * @param int $count
  * @param-out 0|positive-int $count

@@ -799,6 +799,36 @@ class CallToFunctionParametersRuleTest extends RuleTestCase
 		]);
 	}
 
+	#[RequiresPhp('>= 8.1.0')]
+	public function testBug10396(): void
+	{
+		$this->analyse([__DIR__ . '/data/bug-10396.php'], [
+			[
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<array{string, int<-1, max>}>): string, Closure(array<int|string, string>): string given.',
+				46,
+			],
+			[
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<string|null>): string, Closure(array<int|string, string>): string given.',
+				47,
+				'Type array<int|string, string> of parameter #1 $match of passed callable needs to be same or wider than parameter type array<string|null> of accepting callable.',
+			],
+			[
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<array{null, -1}|array{string, int<0, max>}>): string, Closure(array<int|string, array{string, int}>): string given.',
+				48,
+				'• Offset 0 (string) does not accept type null.
+• Type array<int|string, array{string, int}> of parameter #1 $match of passed callable needs to be same or wider than parameter type array<array{null, -1}|array{string, int<0, max>}> of accepting callable.',
+			],
+			[
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<string>): string, Closure(array<int|string, array{string, int}>): string given.',
+				49,
+			],
+			[
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<string|null>): string, Closure(array<int|string, array{string|null, int}>): string given.',
+				50,
+			],
+		]);
+	}
+
 	public function testMbEregReplaceCallback(): void
 	{
 		$this->analyse([__DIR__ . '/data/mb_ereg_replace_callback.php'], [
@@ -3009,11 +3039,11 @@ class CallToFunctionParametersRuleTest extends RuleTestCase
 				110,
 			],
 			[
-				'Parameter #2 $callback of function preg_replace_callback expects callable(array<string>): string, Closure(mixed): array{non-falsy-string, int<-1, max>} given.',
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<array{string, int<-1, max>}>): string, Closure(mixed): array{\'foo\', int<0, max>} given.',
 				113,
 			],
 			[
-				'Parameter #2 $callback of function preg_replace_callback expects callable(array<string>): string, Closure(mixed): array{non-falsy-string|null, int<-1, max>} given.',
+				'Parameter #2 $callback of function preg_replace_callback expects callable(array<array{null, -1}|array{string, int<0, max>}>): string, Closure(mixed): array{\'foo\', int<0, max>} given.',
 				116,
 			],
 			[

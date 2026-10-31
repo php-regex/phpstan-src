@@ -43,6 +43,11 @@ class HelloWorld
 		assertType("array{'1', '2', '3'}|array{'1-2-3'}|false", preg_split('/-/', '1-2-3', $this->generate()));
 		assertType("array{'1', '2', '3'}|array{'1-2-3'}|false", preg_split('/-/', '1-2-3', $this->generate(), $this->generate()));
 
+		// a limit or a flags value no constant names is no failed call:
+		// the engine reads the flags it knows and splits all the same
+		assertType('non-empty-list<string>|false', preg_split('/-/', '1-2-3', $offset));
+		assertType('non-empty-list<array{string, int<0, max>}|string>|false', preg_split('/-/', '1-2-3', $offset, $flags));
+
 		assertType('list<array{string, int<0, max>}|string>|false', preg_split($pattern, $subject, $offset, $flags));
 		assertType('list<array{string, int<0, max>}|string>|false', preg_split("//", $subject, $offset, $flags));
 

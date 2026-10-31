@@ -7,9 +7,11 @@ use Nette\Utils\Strings;
 use PhpParser\Node;
 use PhpParser\Node\Expr\FuncCall;
 use PHPStan\Analyser\Scope;
+use PHPStan\DependencyInjection\AutowiredParameter;
 use PHPStan\DependencyInjection\RegisteredRule;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\Regex\RegexExpressionHelper;
 use function in_array;
 use function sprintf;
@@ -25,6 +27,9 @@ final class RegularExpressionPatternRule implements Rule
 
 	public function __construct(
 		private RegexExpressionHelper $regexExpressionHelper,
+		private PHPRegexReader $reader,
+		#[AutowiredParameter(ref: '%featureToggles.checkRegexPatternForAnalysedPhp%')]
+		private bool $checkRegexPatternForAnalysedPhp,
 	)
 	{
 	}
@@ -128,7 +133,12 @@ final class RegularExpressionPatternRule implements Rule
 			return $e->getMessage();
 		}
 
-		return null;
+		if (!$this->checkRegexPatternForAnalysedPhp) {
+			return null;
+		}
+
+		// the pattern compiles on the running PHP, but can still be invalid for the analysed PHP version and its PCRE2 version
+		return $this->reader->refusalOfExpression($pattern);
 	}
 
 }

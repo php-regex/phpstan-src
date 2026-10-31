@@ -151,7 +151,7 @@ final class RegexExpressionHelper
 		return $delimiters;
 	}
 
-	private function getPatternDelimiter(string $regex): ?string
+	public function getPatternDelimiter(string $regex): ?string
 	{
 		$regex = ltrim($regex);
 

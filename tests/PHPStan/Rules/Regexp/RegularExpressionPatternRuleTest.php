@@ -4,6 +4,7 @@ namespace PHPStan\Rules\Regexp;
 
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
+use PHPStan\Type\Regex\PHPRegexReader;
 use PHPStan\Type\Regex\RegexExpressionHelper;
 use PHPUnit\Framework\Attributes\DataProvider;
 use function sprintf;
@@ -19,6 +20,8 @@ class RegularExpressionPatternRuleTest extends RuleTestCase
 	{
 		return new RegularExpressionPatternRule(
 			self::getContainer()->getByType(RegexExpressionHelper::class),
+			self::getContainer()->getByType(PHPRegexReader::class),
+			true,
 		);
 	}
 
